@@ -86,7 +86,7 @@ watch(() => currentConfig.value.provider, (newProvider) => {
     if (providerModels[newProvider]) {
       // If current model is not in the new provider's list, set to first one
       if (!providerModels[newProvider].includes(currentConfig.value.model)) {
-        currentConfig.value.model = providerModels[newProvider][0]
+        currentConfig.value.model = providerModels[newProvider][0] || ''
       }
     }
   }
