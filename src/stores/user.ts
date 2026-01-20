@@ -132,7 +132,8 @@ export const useUserStore = defineStore('user', () => {
    */
   async function updateProfile(data: { nickname?: string; avatar?: string; bio?: string }): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch('http://localhost:8088/api/v1/user/profile', {
+      const apiBase = import.meta.env.PROD ? '/api/v1' : 'http://localhost:8088/api/v1'
+      const response = await fetch(`${apiBase}/user/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -161,7 +162,8 @@ export const useUserStore = defineStore('user', () => {
    */
   async function changePassword(oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch('http://localhost:8088/api/v1/user/password', {
+      const apiBase = import.meta.env.PROD ? '/api/v1' : 'http://localhost:8088/api/v1'
+      const response = await fetch(`${apiBase}/user/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

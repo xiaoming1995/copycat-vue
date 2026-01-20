@@ -3,7 +3,8 @@
  * 封装 HTTP 请求的通用逻辑
  */
 
-const API_BASE_URL = 'http://localhost:8088/api/v1'
+// 生产环境使用相对路径（通过 nginx 代理），开发环境使用 localhost
+const API_BASE_URL = import.meta.env.PROD ? '/api/v1' : 'http://localhost:8088/api/v1'
 
 // 通用响应类型
 export interface ApiResponse<T = unknown> {
