@@ -3,6 +3,10 @@ FROM node:18-alpine AS build-stage
 
 WORKDIR /app
 
+# 使用国内 npm 镜像加速
+RUN npm config set registry https://registry.npmmirror.com
+
+# Copy dependency files first (利用 Docker 层缓存)
 COPY package*.json ./
 RUN npm install
 

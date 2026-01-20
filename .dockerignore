@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# Dependencies (will be installed in container)
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build output
+dist/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
