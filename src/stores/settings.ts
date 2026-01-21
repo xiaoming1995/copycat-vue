@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getLLMConfig, saveLLMConfig } from '../services/settings'
+import { getLLMConfig, saveApiConfig, saveModelConfig, saveGenerateConfig } from '../services/settings'
 
 export type LLMProvider = 'openai' | 'deepseek' | 'anthropic' | 'moonshot' | 'qwen' | 'hunyuan' | 'doubao' | 'zhipu'
 
@@ -9,7 +9,18 @@ export interface LLMConfig {
   apiKey: string
   model: string
   baseUrl: string
-  batchSize: number
+}
+
+// 各提供商 API Key
+export interface ProviderApiKeys {
+  openai: string
+  deepseek: string
+  moonshot: string
+  qwen: string
+  hunyuan: string
+  doubao: string
+  zhipu: string
+  anthropic: string
 }
 
 export interface MultiModalConfig {
@@ -25,8 +36,7 @@ export const useSettingsStore = defineStore('settings', () => {
     provider: 'openai',
     apiKey: '',
     model: 'gpt-3.5-turbo',
-    baseUrl: 'https://api.openai.com/v1',
-    batchSize: 1
+    baseUrl: 'https://api.openai.com/v1'
   }
 
   const multiModalConfig = ref<MultiModalConfig>({
@@ -34,6 +44,21 @@ export const useSettingsStore = defineStore('settings', () => {
     imageAnalysis: { ...defaultLLMConfig, model: 'gpt-4o' },
     videoAnalysis: { ...defaultLLMConfig, model: 'gpt-4o' }
   })
+
+  // 各提供商 API Key
+  const providerKeys = ref<ProviderApiKeys>({
+    openai: '',
+    deepseek: '',
+    moonshot: '',
+    qwen: '',
+    hunyuan: '',
+    doubao: '',
+    zhipu: '',
+    anthropic: ''
+  })
+
+  // 生成设置
+  const generateCount = ref(1)
 
   const activeTab = ref<ConfigTab>('contentAnalysis')
 
@@ -46,28 +71,42 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       const response = await getLLMConfig()
       if (response.code === 0 && response.data) {
+        // 加载各提供商 API Key
+        if (response.data.provider_keys) {
+          providerKeys.value = {
+            openai: response.data.provider_keys.openai || '',
+            deepseek: response.data.provider_keys.deepseek || '',
+            moonshot: response.data.provider_keys.moonshot || '',
+            qwen: response.data.provider_keys.qwen || '',
+            hunyuan: response.data.provider_keys.hunyuan || '',
+            doubao: response.data.provider_keys.doubao || '',
+            zhipu: response.data.provider_keys.zhipu || '',
+            anthropic: response.data.provider_keys.anthropic || ''
+          }
+        }
+
+        // 加载生成设置
+        generateCount.value = response.data.generate_count || 1
+
         // 加载三种配置
         multiModalConfig.value = {
           contentAnalysis: {
             provider: (response.data.content_analysis?.provider as LLMProvider) || 'openai',
             apiKey: response.data.content_analysis?.api_key || '',
             model: response.data.content_analysis?.model || 'gpt-3.5-turbo',
-            baseUrl: response.data.content_analysis?.base_url || '',
-            batchSize: response.data.content_analysis?.batch_size || 1
+            baseUrl: response.data.content_analysis?.base_url || ''
           },
           imageAnalysis: {
             provider: (response.data.image_analysis?.provider as LLMProvider) || 'openai',
             apiKey: response.data.image_analysis?.api_key || '',
             model: response.data.image_analysis?.model || 'gpt-4o',
-            baseUrl: response.data.image_analysis?.base_url || '',
-            batchSize: response.data.image_analysis?.batch_size || 1
+            baseUrl: response.data.image_analysis?.base_url || ''
           },
           videoAnalysis: {
             provider: (response.data.video_analysis?.provider as LLMProvider) || 'openai',
             apiKey: response.data.video_analysis?.api_key || '',
             model: response.data.video_analysis?.model || 'gpt-4o',
-            baseUrl: response.data.video_analysis?.base_url || '',
-            batchSize: response.data.video_analysis?.batch_size || 1
+            baseUrl: response.data.video_analysis?.base_url || ''
           }
         }
         return true
@@ -81,40 +120,72 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  // 保存配置到后端
-  async function saveConfig(): Promise<{ success: boolean; message: string }> {
+  // 保存 API 配置（模块1）
+  async function saveApiConfigAction(): Promise<{ success: boolean; message: string }> {
     isSaving.value = true
     try {
-      const response = await saveLLMConfig({
+      const response = await saveApiConfig({
         content_analysis: {
           provider: multiModalConfig.value.contentAnalysis.provider,
-          api_key: multiModalConfig.value.contentAnalysis.apiKey,
-          model: multiModalConfig.value.contentAnalysis.model,
-          base_url: multiModalConfig.value.contentAnalysis.baseUrl,
-          batch_size: multiModalConfig.value.contentAnalysis.batchSize
+          base_url: multiModalConfig.value.contentAnalysis.baseUrl
         },
         image_analysis: {
           provider: multiModalConfig.value.imageAnalysis.provider,
-          api_key: multiModalConfig.value.imageAnalysis.apiKey,
-          model: multiModalConfig.value.imageAnalysis.model,
-          base_url: multiModalConfig.value.imageAnalysis.baseUrl,
-          batch_size: multiModalConfig.value.imageAnalysis.batchSize
+          base_url: multiModalConfig.value.imageAnalysis.baseUrl
         },
         video_analysis: {
           provider: multiModalConfig.value.videoAnalysis.provider,
-          api_key: multiModalConfig.value.videoAnalysis.apiKey,
-          model: multiModalConfig.value.videoAnalysis.model,
-          base_url: multiModalConfig.value.videoAnalysis.baseUrl,
-          batch_size: multiModalConfig.value.videoAnalysis.batchSize
-        }
+          base_url: multiModalConfig.value.videoAnalysis.baseUrl
+        },
+        provider_keys: providerKeys.value
       })
       if (response.code === 0) {
-        return { success: true, message: '配置保存成功' }
+        return { success: true, message: 'API 配置保存成功' }
       }
       return { success: false, message: response.msg || '保存失败' }
     } catch (error) {
-      console.error('保存配置失败:', error)
-      return { success: false, message: '网络错误，请稍后重试' }
+      console.error('保存失败:', error)
+      return { success: false, message: '网络错误' }
+    } finally {
+      isSaving.value = false
+    }
+  }
+
+  // 保存模型配置（模块2）
+  async function saveModelConfigAction(): Promise<{ success: boolean; message: string }> {
+    isSaving.value = true
+    try {
+      const response = await saveModelConfig({
+        content_model: multiModalConfig.value.contentAnalysis.model,
+        image_model: multiModalConfig.value.imageAnalysis.model,
+        video_model: multiModalConfig.value.videoAnalysis.model
+      })
+      if (response.code === 0) {
+        return { success: true, message: '模型配置保存成功' }
+      }
+      return { success: false, message: response.msg || '保存失败' }
+    } catch (error) {
+      console.error('保存失败:', error)
+      return { success: false, message: '网络错误' }
+    } finally {
+      isSaving.value = false
+    }
+  }
+
+  // 保存生成设置（模块3）
+  async function saveGenerateConfigAction(): Promise<{ success: boolean; message: string }> {
+    isSaving.value = true
+    try {
+      const response = await saveGenerateConfig({
+        generate_count: generateCount.value
+      })
+      if (response.code === 0) {
+        return { success: true, message: '生成设置保存成功' }
+      }
+      return { success: false, message: response.msg || '保存失败' }
+    } catch (error) {
+      console.error('保存失败:', error)
+      return { success: false, message: '网络错误' }
     } finally {
       isSaving.value = false
     }
@@ -122,10 +193,14 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     multiModalConfig,
+    providerKeys,
+    generateCount,
     activeTab,
     isLoading,
     isSaving,
     fetchConfig,
-    saveConfig
+    saveApiConfigAction,
+    saveModelConfigAction,
+    saveGenerateConfigAction
   }
 })

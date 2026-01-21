@@ -4,16 +4,33 @@ import { storeToRefs } from 'pinia'
 import { ref, onMounted, watch, computed } from 'vue'
 
 const settingsStore = useSettingsStore()
-const { multiModalConfig, activeTab, isLoading, isSaving } = storeToRefs(settingsStore)
+const { multiModalConfig, providerKeys, generateCount, activeTab, isLoading } = storeToRefs(settingsStore)
 
 // Helper to get current config
 const currentConfig = computed(() => multiModalConfig.value[activeTab.value])
+
+// Helper to get active tab name
+const activeTabName = computed(() => {
+  const tab = tabs.find(t => t.id === activeTab.value)
+  return tab ? tab.name : '模型'
+})
+
+// Local loading states for independent button feedback
+const savingTaskType = ref(false)
+const savingModel = ref(false)
+const savingGenerate = ref(false)
+
+const tabs = [
+  { id: 'contentAnalysis', name: '文案分析与生成', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z' },
+  { id: 'imageAnalysis', name: '图片分析与生成', icon: 'M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z' },
+  { id: 'videoAnalysis', name: '视频分析与生成', icon: 'M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z' }
+]
 
 const providers: { label: string; value: LLMProvider; icon: string }[] = [
   { 
     label: 'OpenAI', 
     value: 'openai',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.0462 6.0462 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729ZM13.2549 22.8476a4.7651 4.7651 0 0 1-3.2796-.6964 2.808 2.808 0 0 0-.1043.0095l-1.0838.419-.0615.3526v.0143c-.0048.1189-.0095.2427-.0095.3664a4.8466 4.8466 0 0 1-3.86-4.7114v-.8994l2.5833-1.499-.5471-1.4325L4.2546 15.828a4.8656 4.8656 0 0 1-1.0933-2.0795 4.7889 4.7889 0 0 1-.3663-1.8416c0-.138.0048-.2712.0095-.3997.0048-.1523.0143-.3046.0238-.4568l.0095-.0857.2474-1.1218.8469-.3284 2.2217 1.2895.5329-1.4516-2.1122-1.2229a4.8608 4.8608 0 0 1 1.694-2.284 4.7842 4.7842 0 0 1 2.4174-.6535 4.8608 4.8608 0 0 1 3.5508 1.5466l.5709.8423 2.117-1.2229a4.7794 4.7794 0 0 1 4.3973-.0285 4.8656 4.8656 0 0 1 2.274 3.036l.2093 1.0933-2.293 1.3323.5376 1.4468 2.155-1.2514a4.8703 4.8703 0 0 1 .495 2.5837 4.7556 4.7556 0 0 1-1.06 2.6598l-1.0933.6424-.5567 1.485 2.1598 1.2515c-.4806 1.4135-1.5798 2.5456-3.0312 3.1264l-1.1552.4473-2.2217-1.2896-.5472 1.4372 2.1123 1.2277Zm-8.474-11.7243a3.597 3.597 0 0 0 .0476-.7178c0-.1428-.0048-.2807-.0095-.4188a3.7017 3.7017 0 0 0-1.0611 1.9606l2.1265 1.2323a3.6065 3.6065 0 0 0 1.2942-.8185l-2.3977-1.2378Zm13.2549 1.637a3.5875 3.5875 0 0 0 .0476.7138c0 .1428-.0048.2855-.0095.4188a3.7255 3.7255 0 0 0 1.0658-1.9558l-2.1313-1.2323a3.616 3.616 0 0 0-1.2942.8233l2.3216 1.2322Zm-1.8986-5.4633a3.7208 3.7208 0 0 0-2.0795-1.0564l-1.2229 2.1224a3.616 3.616 0 0 0 .8232 1.2895l2.4792-2.3555Zm-8.2313 10.9725a3.6827 3.6827 0 0 0 2.0795 1.0612l1.2229-2.1171a3.597 3.597 0 0 0-.8232-1.2942l-2.4792 2.3501Zm2.6648-7.7983-1.2229-2.117a3.7255 3.7255 0 0 0-2.0033 1.4276l2.4025 1.4085a3.6256 3.6256 0 0 0 .8237-.719ZM13.8497 20.31l1.2276 2.1123a3.7255 3.7255 0 0 0 2.0033-1.4276l-2.4025-1.4085a3.616 3.616 0 0 0-.8284.7238Zm-5.3344-3.5222 1.77-3.0741 3.079 1.77-3.079 1.789-1.77-.4849Z"/></svg>'
+    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M22.28 9.82a6 6 0 0 0-.52-4.91 6.05 6.05 0 0 0-6.5-2.9A6.06 6.06 0 0 0 5 4.18a6 6 0 0 0-4 2.9 6.05 6.05 0 0 0 .74 7.1 6 6 0 0 0 .51 4.91 6.05 6.05 0 0 0 6.51 2.9A6.05 6.05 0 0 0 13.26 24a6.06 6.06 0 0 0 5.77-4.2 6 6 0 0 0 4-2.9 6.06 6.06 0 0 0-.75-7.08ZM13.25 22.85a4.76 4.76 0 0 1-3.28-.7 2.8 2.8 0 0 0-1.19.43l-1.08.42a4.85 4.85 0 0 1-3.86-4.71v-.9l2.58-1.5-.55-1.43-2.61.9a4.87 4.87 0 0 1-1.1-2.08 4.79 4.79 0 0 1-.36-1.84c0-.14 0-.27.01-.4a2.8 2.8 0 0 0 0-.54l.25-1.12.85-.33 2.22 1.29.53-1.45-2.11-1.22a4.86 4.86 0 0 1 1.69-2.28 4.78 4.78 0 0 1 2.42-.66 4.86 4.86 0 0 1 3.55 1.55l.57.84 2.12-1.22a4.78 4.78 0 0 1 4.4 0 4.86 4.86 0 0 1 2.27 3.03l.21 1.1-2.29 1.33.54 1.45 2.15-1.25a4.87 4.87 0 0 1 .5 2.58 4.76 4.76 0 0 1-1.06 2.66l-1.1.64-.55 1.49 2.16 1.25c-.48 1.41-1.58 2.54-3.03 3.12l-1.16.45-2.22-1.29-.55 1.44 2.11 1.23Zm-8.47-11.72a3.6 3.6 0 0 0 0-1.14 3.7 3.7 0 0 0-1.06 1.96l2.13 1.23a3.6 3.6 0 0 0 1.29-.82l-2.4-1.23Zm13.25 1.63a3.59 3.59 0 0 0 0-1.13 3.73 3.73 0 0 0 1.07-1.96l-2.13-1.23a3.62 3.62 0 0 0-1.3.82l2.32 1.23Zm-1.9-5.46a3.72 3.72 0 0 0-2.08-1.06l-1.22 2.12a3.62 3.62 0 0 0 .82 1.29l2.48-2.35Zm-8.23 10.97a3.68 3.68 0 0 0 2.08 1.06l1.22-2.12a3.6 3.6 0 0 0-.82-1.29l-2.48 2.35Zm2.66-7.8-1.22-2.11a3.73 3.73 0 0 0-2 1.42l2.4 1.41a3.63 3.63 0 0 0 .82-.72Z"/></svg>'
   },
   { 
     label: 'DeepSeek', 
@@ -74,9 +91,17 @@ const providerBaseUrls: Record<LLMProvider, string> = {
   anthropic: 'https://api.anthropic.com/v1'
 }
 
-// Watch provider change to reset model or set default
-watch(() => currentConfig.value.provider, (newProvider) => {
+// Watch provider change to reset model or set default, and load API Key
+watch(() => currentConfig.value.provider, (newProvider, oldProvider) => {
   if (newProvider) {
+    // 保存旧提供商的 API Key（如果有变化且不是脱敏的 key）
+    if (oldProvider && currentConfig.value.apiKey && !currentConfig.value.apiKey.includes('****')) {
+      providerKeys.value[oldProvider] = currentConfig.value.apiKey
+    }
+    
+    // 加载新提供商的 API Key
+    currentConfig.value.apiKey = providerKeys.value[newProvider] || ''
+    
     // Set default Base URL
     if (providerBaseUrls[newProvider]) {
       currentConfig.value.baseUrl = providerBaseUrls[newProvider]
@@ -95,30 +120,89 @@ watch(() => currentConfig.value.provider, (newProvider) => {
 const showSuccess = ref(false)
 const showError = ref(false)
 const errorMsg = ref('')
+const successMsg = ref('')
+
+const showMessage = (type: 'success' | 'error', msg: string) => {
+  if (type === 'success') {
+    successMsg.value = msg
+    showSuccess.value = true
+    setTimeout(() => { showSuccess.value = false }, 3000)
+  } else {
+    errorMsg.value = msg
+    showError.value = true
+    setTimeout(() => { showError.value = false }, 5000)
+  }
+}
 
 // 页面加载时获取配置
 onMounted(async () => {
   await settingsStore.fetchConfig()
+  
+  // 恢复保存的 Tab
+  const savedTab = localStorage.getItem('copycat_settings_active_tab')
+  if (savedTab && tabs.find(t => t.id === savedTab)) {
+    activeTab.value = savedTab as any
+  }
 })
 
-// 保存配置
-const handleSave = async () => {
+// 1. 保存任务类型选择 (仅保存本地偏好)
+const handleSaveTaskType = async () => {
+  savingTaskType.value = true
+  // 模拟异步操作
+  await new Promise(resolve => setTimeout(resolve, 500))
+  localStorage.setItem('copycat_settings_active_tab', activeTab.value)
+  showMessage('success', '任务类型偏好保存成功')
+  savingTaskType.value = false
+}
+
+// 2. 保存模型设置 (合并了服务商、Key、URL、Model)
+const handleSaveModelSettings = async () => {
   showSuccess.value = false
   showError.value = false
+  savingModel.value = true
   
-  const result = await settingsStore.saveConfig()
+  // 同步当前 API Key 到 providerKeys
+  if (currentConfig.value.apiKey && !currentConfig.value.apiKey.includes('****')) {
+    providerKeys.value[currentConfig.value.provider] = currentConfig.value.apiKey
+  }
   
-  if (result.success) {
-    showSuccess.value = true
-    setTimeout(() => {
-      showSuccess.value = false
-    }, 3000)
-  } else {
-    errorMsg.value = result.message
-    showError.value = true
-    setTimeout(() => {
-      showError.value = false
-    }, 3000)
+  try {
+    // 并行执行两个保存操作
+    const results = await Promise.all([
+      settingsStore.saveApiConfigAction(),
+      settingsStore.saveModelConfigAction()
+    ])
+    
+    const failures = results.filter(r => !r.success)
+    if (failures.length > 0) {
+      showMessage('error', failures.map(f => f.message).join('; '))
+    } else {
+      showMessage('success', '模型配置保存成功')
+    }
+  } catch (error) {
+    showMessage('error', '保存过程中发生错误')
+  } finally {
+    savingModel.value = false
+  }
+}
+
+// 3. 保存生成设置
+const handleSaveGenerate = async () => {
+  showSuccess.value = false
+  showError.value = false
+  savingGenerate.value = true
+  
+  try {
+    const result = await settingsStore.saveGenerateConfigAction()
+    if (result.success) {
+      showMessage('success', '生成设置保存成功')
+    } else {
+      showMessage('error', result.message || '保存失败')
+    }
+  } catch (error) {
+    showMessage('error', '保存过程中发生错误')
+  } finally {
+    savingGenerate.value = false
   }
 }
 </script>
@@ -127,251 +211,253 @@ const handleSave = async () => {
   <div class="min-h-[calc(100vh-4rem)] bg-gray-50 py-10">
     <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
       
-      <!-- Header -->
-      <div class="relative overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-900/5 mb-8">
-        <div class="absolute inset-0 h-full bg-gradient-to-r from-blue-600 to-indigo-600 opacity-90"></div>
-        <div class="absolute inset-0 h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
-        <div class="relative p-8 sm:p-10">
-          <h1 class="text-3xl font-bold tracking-tight text-white">配置中心</h1>
-          <p class="mt-2 text-lg text-indigo-100">设置大模型参数，定制你的专属 AI 助手</p>
+      <!-- Global Status Message (Fixed at top right) -->
+      <div class="fixed top-24 right-8 z-50 flex flex-col gap-2 pointer-events-none">
+        <div v-if="showSuccess" class="bg-white border border-green-100 text-green-800 px-4 py-3 rounded-xl shadow-xl flex items-center animate-slide-in pointer-events-auto ring-1 ring-green-900/5">
+           <div class="flex-shrink-0 bg-green-50 rounded-full p-1 mr-3">
+             <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+             </svg>
+           </div>
+           <span class="font-medium">{{ successMsg }}</span>
+        </div>
+        <div v-if="showError" class="bg-white border border-red-100 text-red-800 px-4 py-3 rounded-xl shadow-xl flex items-center animate-slide-in pointer-events-auto ring-1 ring-red-900/5">
+           <div class="flex-shrink-0 bg-red-50 rounded-full p-1 mr-3">
+             <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+             </svg>
+           </div>
+           <span class="font-medium">{{ errorMsg }}</span>
         </div>
       </div>
 
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-gray-900/5 overflow-hidden">
-        <!-- Tabs -->
-        <div class="border-b border-gray-200">
-          <nav class="-mb-px flex" aria-label="Tabs">
-            <button
-              v-for="tab in [
-                { id: 'contentAnalysis', name: '文案分析与生成' },
-                { id: 'imageAnalysis', name: '图片分析与生成' },
-                { id: 'videoAnalysis', name: '视频分析与生成' }
-              ]"
-              :key="tab.id"
-              @click="activeTab = tab.id as any"
-              :class="[
-                activeTab === tab.id
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-                'w-1/3 border-b-2 py-4 px-1 text-center text-sm font-medium transition-colors duration-200'
-              ]"
-            >
-              {{ tab.name }}
-            </button>
-          </nav>
+      <div class="flex flex-col gap-8">
+        
+        <!-- Header -->
+        <div class="relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-900/5">
+          <div class="absolute inset-0 h-full bg-gradient-to-r from-blue-600 to-indigo-600 opacity-90"></div>
+          <div class="absolute inset-0 h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
+          <div class="relative p-8 sm:p-10">
+            <h1 class="text-3xl font-bold tracking-tight text-white">配置中心</h1>
+            <p class="mt-2 text-lg text-indigo-100">自定义您的 AI 助手参数与行为</p>
+          </div>
         </div>
 
-        <div class="p-8 sm:p-10 space-y-10">
-          <!-- Provider Selection -->
-          <div>
-            <div class="flex items-center gap-3 mb-6">
-              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.072 0 2.063.49 2.7 1.35l3.112 5.1a4.5 4.5 0 01.9 2.7m0 0a3 3 0 01-3 3m0 3h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008zm-3 6h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008z" />
-                </svg>
+        <!-- Module 1: Task Type Selection -->
+        <div class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
+           <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="h-2 w-2 rounded-full bg-blue-500"></div>
+                <h3 class="text-base font-semibold leading-6 text-gray-900">任务类型选择</h3>
               </div>
-              <div>
-                <h2 class="text-lg font-semibold leading-7 text-gray-900">模型服务商</h2>
-                <p class="text-sm text-gray-500">为<span class="font-bold text-indigo-600 mx-1">{{ activeTab === 'contentAnalysis' ? '文案分析与生成' : (activeTab === 'imageAnalysis' ? '图片分析与生成' : '视频分析与生成') }}</span>功能选择 AI 模型</p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div 
-                v-for="provider in providers" 
-                :key="provider.value"
-                class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm focus:outline-none transition-all duration-200"
-                :class="[
-                  currentConfig.provider === provider.value 
-                    ? 'border-indigo-600 ring-2 ring-indigo-600 bg-indigo-50/50' 
-                    : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
-                ]"
-                @click="currentConfig.provider = provider.value"
+              <button
+                type="button"
+                @click="handleSaveTaskType"
+                :disabled="savingTaskType"
+                class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <div class="flex w-full items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <div class="text-gray-900" :class="{ 'text-indigo-600': currentConfig.provider === provider.value }" v-html="provider.icon"></div>
-                    <span class="block text-sm font-medium text-gray-900">{{ provider.label }}</span>
+                <svg v-if="savingTaskType" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                {{ savingTaskType ? '保存中...' : '保存' }}
+              </button>
+           </div>
+           <div class="p-6">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <button
+                  v-for="tab in tabs"
+                  :key="tab.id"
+                  @click="activeTab = tab.id as any"
+                  class="relative group flex items-center p-4 rounded-xl border-2 transition-all duration-200"
+                  :class="[
+                    activeTab === tab.id
+                      ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600'
+                      : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                  ]"
+                >
+                  <div class="mr-4 flex-shrink-0 p-2 rounded-lg transition-colors" :class="activeTab === tab.id ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" :d="tab.icon" />
+                    </svg>
                   </div>
+                  <div class="text-left">
+                     <p class="text-sm font-semibold" :class="activeTab === tab.id ? 'text-indigo-900' : 'text-gray-900'">{{ tab.name }}</p>
+                     <p class="text-xs text-gray-500 mt-0.5">点击切换配置</p>
+                  </div>
+                  <div v-if="activeTab === tab.id" class="absolute top-3 right-3 h-2 w-2 rounded-full bg-indigo-600 ring-2 ring-white"></div>
+                </button>
+              </div>
+           </div>
+        </div>
+
+        <!-- Module 2: Model Settings (Provider, Key, URL, Model) -->
+        <div class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="h-2 w-2 rounded-full bg-indigo-500"></div>
+              <h3 class="text-base font-semibold leading-6 text-gray-900">{{ activeTabName }}模型配置</h3>
+            </div>
+            <button
+              type="button"
+              @click="handleSaveModelSettings"
+              :disabled="savingModel"
+              class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+               <svg v-if="savingModel" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+               {{ savingModel ? '保存中...' : '保存配置' }}
+            </button>
+          </div>
+          
+          <div class="p-6">
+            <!-- Section 1: Provider Selection -->
+            <div class="mb-8">
+              <label class="block text-sm font-medium leading-6 text-gray-900 mb-3">选择服务商</label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div 
+                  v-for="provider in providers" 
+                  :key="provider.value"
+                  class="relative group cursor-pointer"
+                  @click="currentConfig.provider = provider.value"
+                >
                   <div 
-                    class="h-4 w-4 rounded-full border flex items-center justify-center"
+                    class="flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 h-24"
                     :class="[
                       currentConfig.provider === provider.value 
-                        ? 'border-indigo-600 bg-indigo-600' 
-                        : 'border-gray-300'
+                        ? 'border-indigo-600 bg-indigo-50/50' 
+                        : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                     ]"
                   >
-                    <div class="h-1.5 w-1.5 rounded-full bg-white"></div>
+                     <div class="text-gray-900 mb-2 transition-transform duration-200 group-hover:scale-110" :class="{ 'text-indigo-600': currentConfig.provider === provider.value }" v-html="provider.icon"></div>
+                     <span class="text-xs font-medium text-center truncate w-full px-1" :class="currentConfig.provider === provider.value ? 'text-indigo-900' : 'text-gray-600'">{{ provider.label }}</span>
                   </div>
+                  <div v-if="currentConfig.provider === provider.value" class="absolute top-2 right-2 h-2 w-2 rounded-full bg-indigo-600 ring-2 ring-white"></div>
                 </div>
               </div>
             </div>
-          </div>
+            
+            <hr class="border-gray-100 mb-8" />
 
-          <hr class="border-gray-100" />
-
-          <!-- API Configuration -->
-          <div>
-            <div class="flex items-center gap-3 mb-6">
-              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                </svg>
-              </div>
-              <div>
-                <h2 class="text-lg font-semibold leading-7 text-gray-900">API 参数配置</h2>
-                <p class="text-sm text-gray-500">配置 API Key 和其他连接参数</p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-              <div class="sm:col-span-4">
+            <!-- Section 2: Details & Model -->
+            <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-3">
+              <!-- API Key -->
+              <div class="sm:col-span-1">
                 <label for="apiKey" class="block text-sm font-medium leading-6 text-gray-900">API Key</label>
                 <div class="mt-2 relative">
                   <input
                     type="password"
                     id="apiKey"
                     v-model="currentConfig.apiKey"
-                    class="block w-full rounded-lg border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-shadow"
+                    class="block w-full rounded-lg border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white"
                     placeholder="sk-..."
                   />
-                  <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-                    </svg>
-                  </div>
                 </div>
-                <p class="mt-2 text-xs text-gray-500 flex items-center gap-1">
-                  <svg class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-                  </svg>
-                  您的 API Key 仅存储在本地浏览器中，不会发送到我们的服务器。
-                </p>
               </div>
 
-              <div class="sm:col-span-4">
-                <label for="model" class="block text-sm font-medium leading-6 text-gray-900">模型名称 (Model)</label>
-                <div class="mt-2">
+              <!-- Base URL -->
+              <div class="sm:col-span-1">
+                <label for="baseUrl" class="block text-sm font-medium leading-6 text-gray-900">API Base URL</label>
+                <div class="mt-2 relative">
+                   <input
+                    type="text"
+                    id="baseUrl"
+                    v-model="currentConfig.baseUrl"
+                    readonly
+                    class="block w-full rounded-lg border-0 py-2.5 px-3 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <!-- Model Select -->
+              <div class="sm:col-span-1">
+                <label for="model" class="block text-sm font-medium leading-6 text-gray-900">模型选择</label>
+                <div class="mt-2 relative">
                   <select
                     id="model"
                     v-model="currentConfig.model"
-                    class="block w-full rounded-lg border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-shadow"
+                    class="block w-full rounded-lg border-0 py-2.5 px-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white shadow-sm appearance-none"
                   >
                     <option v-for="model in providerModels[currentConfig.provider] || []" :key="model" :value="model">
                       {{ model }}
                     </option>
                   </select>
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
                 </div>
               </div>
 
-              <div class="sm:col-span-4">
-                <label for="baseUrl" class="block text-sm font-medium leading-6 text-gray-900">API Base URL</label>
-                <div class="mt-2">
-                  <input
-                    type="text"
-                    id="baseUrl"
-                    v-model="currentConfig.baseUrl"
-                    readonly
-                    class="block w-full rounded-lg border-0 py-2.5 px-3 text-gray-500 bg-gray-100 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-shadow cursor-not-allowed"
-                  />
-                </div>
-                <p class="mt-2 text-xs text-gray-500">已根据选择的服务商自动配置</p>
-              </div>
-            </div>
-          </div>
-
-          <hr class="border-gray-100" />
-
-          <!-- Generation Settings -->
-          <div>
-            <div class="flex items-center gap-3 mb-6">
-              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-green-600">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
-                </svg>
-              </div>
-              <div>
-                <h2 class="text-lg font-semibold leading-7 text-gray-900">生成设置</h2>
-                <p class="text-sm text-gray-500">配置内容生成的行为和参数</p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-              <div class="sm:col-span-4">
-                <label for="batchSize" class="block text-sm font-medium leading-6 text-gray-900">单次仿写条数</label>
-                <div class="mt-2">
-                  <input
-                    type="number"
-                    id="batchSize"
-                    v-model.number="currentConfig.batchSize"
-                    min="1"
-                    max="10"
-                    class="block w-full rounded-lg border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-shadow"
-                  />
-                </div>
-                <p class="mt-2 text-xs text-gray-500">设置一次生成多少条仿写结果（建议 1-5 条）</p>
-              </div>
             </div>
           </div>
         </div>
 
-        <div class="bg-gray-50 px-8 py-6 flex items-center justify-between border-t border-gray-100">
-           <div class="flex items-center">
-             <!-- 成功提示 -->
-             <div v-if="showSuccess" class="text-sm font-medium text-green-600 flex items-center animate-fade-in">
-                <div class="rounded-full bg-green-100 p-1 mr-2">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                配置已保存到服务器
+        <!-- Module 3: Generation Settings -->
+        <div class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="h-2 w-2 rounded-full bg-purple-500"></div>
+              <h3 class="text-base font-semibold leading-6 text-gray-900">生成参数</h3>
             </div>
-            <!-- 错误提示 -->
-            <div v-if="showError" class="text-sm font-medium text-red-600 flex items-center animate-fade-in">
-                <div class="rounded-full bg-red-100 p-1 mr-2">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-                {{ errorMsg }}
+            <button
+              type="button"
+              @click="handleSaveGenerate"
+              :disabled="savingGenerate"
+              class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+               <svg v-if="savingGenerate" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+               {{ savingGenerate ? '保存中...' : '保存' }}
+            </button>
+          </div>
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-2">
+               <label for="batchSize" class="block text-sm font-medium leading-6 text-gray-900">单次生成数量</label>
+               <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">{{ generateCount }} 条</span>
             </div>
-            <!-- 加载中提示 -->
-            <div v-if="isLoading" class="text-sm text-gray-500 flex items-center">
-              <svg class="animate-spin h-4 w-4 mr-2 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              正在加载配置...
+            
+            <div class="mt-2">
+              <input
+                type="range"
+                id="batchSizeRange"
+                v-model.number="generateCount"
+                min="1"
+                max="10"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+              <div class="flex justify-between text-xs text-gray-400 mt-1">
+                <span>1</span>
+                <span>5</span>
+                <span>10</span>
+              </div>
             </div>
-           </div>
-          <button
-            type="button"
-            @click="handleSave"
-            :disabled="isSaving || isLoading"
-            class="inline-flex items-center rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg v-if="isSaving" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            {{ isSaving ? '保存中...' : '保存配置' }}
-          </button>
+             <p class="mt-3 text-xs text-gray-500">
+              增加生成数量可能会延长处理时间。建议设置为 1-3 条。
+            </p>
+          </div>
+        </div>
+
+      </div>
+      
+      <!-- Bottom Loading Indicator -->
+      <div v-if="isLoading" class="mt-8 flex justify-center">
+        <div class="inline-flex items-center px-4 py-2 rounded-full bg-white shadow-sm ring-1 ring-gray-900/5 text-sm text-gray-500">
+          <svg class="animate-spin h-4 w-4 mr-2 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          正在加载配置...
         </div>
       </div>
+
     </div>
   </div>
 </template>
 
 <style scoped>
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
 }
 
-@keyframes fadeIn {
+@keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
