@@ -107,9 +107,16 @@ const handleRefresh = async () => {
 
 // 跳转到分析页面继续生成
 const goToAnalysis = (project: typeof projects.value[0]) => {
+  console.log('🚀 [goToAnalysis] 开始跳转:', project.id)
+  console.log('🚀 [goToAnalysis] 项目数据:', project)
+  console.log('🚀 [goToAnalysis] analysis_result:', project.analysis_result)
+  
   // 将项目数据存储到 sessionStorage 以便首页读取
   sessionStorage.setItem('continueProject', JSON.stringify(project))
+  console.log('🚀 [goToAnalysis] 已存储到 sessionStorage')
+  
   router.push({ name: 'home', query: { continue: project.id } })
+  console.log('🚀 [goToAnalysis] 已调用 router.push')
 }
 
 // 截取内容预览
@@ -298,11 +305,18 @@ const getContentPreview = (content: string, maxLength = 100) => {
             <!-- Actions Footer -->
             <div class="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
               <button
-                v-if="project.analysis_result"
+                v-if="project.status === 'analyzed' || project.status === 'completed'"
                 @click="goToAnalysis(project)"
                 class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
               >
                 查看分析 / 继续生成
+              </button>
+              <button
+                v-else
+                @click="goToAnalysis(project)"
+                class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+              >
+                开始分析
               </button>
                <button
                 @click="handleDelete(project.id)"

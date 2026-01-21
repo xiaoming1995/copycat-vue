@@ -35,6 +35,12 @@ const router = createRouter({
       name: 'settings',
       component: () => import('../views/SettingsView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/batch',
+      name: 'batch',
+      component: () => import('../views/BatchView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

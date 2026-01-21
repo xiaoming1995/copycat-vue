@@ -71,6 +71,7 @@ export interface GenerateRequest {
 // 生成结果
 export interface GenerateResult {
     generated_content: string
+    generated_contents?: string[]  // 多条生成结果
 }
 
 // 分析爆款内容

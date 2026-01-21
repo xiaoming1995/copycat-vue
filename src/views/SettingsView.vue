@@ -279,6 +279,41 @@ const handleSave = async () => {
               </div>
             </div>
           </div>
+
+          <hr class="border-gray-100" />
+
+          <!-- Generation Settings -->
+          <div>
+            <div class="flex items-center gap-3 mb-6">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-green-600">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-lg font-semibold leading-7 text-gray-900">生成设置</h2>
+                <p class="text-sm text-gray-500">配置内容生成的行为和参数</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+              <div class="sm:col-span-4">
+                <label for="batchSize" class="block text-sm font-medium leading-6 text-gray-900">单次仿写条数</label>
+                <div class="mt-2">
+                  <input
+                    type="number"
+                    id="batchSize"
+                    v-model.number="currentConfig.batchSize"
+                    min="1"
+                    max="10"
+                    class="block w-full rounded-lg border-0 py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-shadow"
+                  />
+                </div>
+                <p class="mt-2 text-xs text-gray-500">设置一次生成多少条仿写结果（建议 1-5 条）</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="bg-gray-50 px-8 py-6 flex items-center justify-between border-t border-gray-100">

@@ -6,6 +6,7 @@ export interface LLMConfigItem {
     api_key: string
     model: string
     base_url: string
+    batch_size?: number
 }
 
 // 多模态配置

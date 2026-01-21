@@ -121,8 +121,11 @@ onMounted(() => {
         currentProjectId.value = project.id
         urlContent.value = project.source_url || ''
         
-        // 解析分析结果
-        if (project.analysis_result) {
+        // 检查是否有分析结果（支持状态判断和内容判断）
+        const hasAnalysis = project.status === 'analyzed' || project.status === 'completed' ||
+          (project.analysis_result && Object.keys(project.analysis_result).length > 0)
+        
+        if (hasAnalysis && project.analysis_result) {
           const result = project.analysis_result as AnalysisResultType
           llmAnalysisResult.value = result
           
@@ -528,8 +531,16 @@ const handleGenerate = async (topic: string, forceRegenerate = false) => {
       new_topic: topic
     })
 
-    if (response.code === 0 && response.data?.generated_content) {
-      generatedContent.value = response.data.generated_content
+    if (response.code === 0 && response.data) {
+      // 支持多条生成结果
+      if (response.data.generated_contents && response.data.generated_contents.length > 1) {
+        // 多条内容用分隔符展示
+        generatedContent.value = response.data.generated_contents
+          .map((content: string, index: number) => `【方案 ${index + 1}】\n${content}`)
+          .join('\n\n' + '─'.repeat(40) + '\n\n')
+      } else if (response.data.generated_content) {
+        generatedContent.value = response.data.generated_content
+      }
       lastGeneratedTopic.value = topic
     } else {
       // 回退到模拟生成

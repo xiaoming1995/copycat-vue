@@ -9,6 +9,7 @@ export interface LLMConfig {
   apiKey: string
   model: string
   baseUrl: string
+  batchSize: number
 }
 
 export interface MultiModalConfig {
@@ -24,7 +25,8 @@ export const useSettingsStore = defineStore('settings', () => {
     provider: 'openai',
     apiKey: '',
     model: 'gpt-3.5-turbo',
-    baseUrl: 'https://api.openai.com/v1'
+    baseUrl: 'https://api.openai.com/v1',
+    batchSize: 1
   }
 
   const multiModalConfig = ref<MultiModalConfig>({
@@ -50,19 +52,22 @@ export const useSettingsStore = defineStore('settings', () => {
             provider: (response.data.content_analysis?.provider as LLMProvider) || 'openai',
             apiKey: response.data.content_analysis?.api_key || '',
             model: response.data.content_analysis?.model || 'gpt-3.5-turbo',
-            baseUrl: response.data.content_analysis?.base_url || ''
+            baseUrl: response.data.content_analysis?.base_url || '',
+            batchSize: response.data.content_analysis?.batch_size || 1
           },
           imageAnalysis: {
             provider: (response.data.image_analysis?.provider as LLMProvider) || 'openai',
             apiKey: response.data.image_analysis?.api_key || '',
             model: response.data.image_analysis?.model || 'gpt-4o',
-            baseUrl: response.data.image_analysis?.base_url || ''
+            baseUrl: response.data.image_analysis?.base_url || '',
+            batchSize: response.data.image_analysis?.batch_size || 1
           },
           videoAnalysis: {
             provider: (response.data.video_analysis?.provider as LLMProvider) || 'openai',
             apiKey: response.data.video_analysis?.api_key || '',
             model: response.data.video_analysis?.model || 'gpt-4o',
-            baseUrl: response.data.video_analysis?.base_url || ''
+            baseUrl: response.data.video_analysis?.base_url || '',
+            batchSize: response.data.video_analysis?.batch_size || 1
           }
         }
         return true
@@ -85,19 +90,22 @@ export const useSettingsStore = defineStore('settings', () => {
           provider: multiModalConfig.value.contentAnalysis.provider,
           api_key: multiModalConfig.value.contentAnalysis.apiKey,
           model: multiModalConfig.value.contentAnalysis.model,
-          base_url: multiModalConfig.value.contentAnalysis.baseUrl
+          base_url: multiModalConfig.value.contentAnalysis.baseUrl,
+          batch_size: multiModalConfig.value.contentAnalysis.batchSize
         },
         image_analysis: {
           provider: multiModalConfig.value.imageAnalysis.provider,
           api_key: multiModalConfig.value.imageAnalysis.apiKey,
           model: multiModalConfig.value.imageAnalysis.model,
-          base_url: multiModalConfig.value.imageAnalysis.baseUrl
+          base_url: multiModalConfig.value.imageAnalysis.baseUrl,
+          batch_size: multiModalConfig.value.imageAnalysis.batchSize
         },
         video_analysis: {
           provider: multiModalConfig.value.videoAnalysis.provider,
           api_key: multiModalConfig.value.videoAnalysis.apiKey,
           model: multiModalConfig.value.videoAnalysis.model,
-          base_url: multiModalConfig.value.videoAnalysis.baseUrl
+          base_url: multiModalConfig.value.videoAnalysis.baseUrl,
+          batch_size: multiModalConfig.value.videoAnalysis.batchSize
         }
       })
       if (response.code === 0) {
