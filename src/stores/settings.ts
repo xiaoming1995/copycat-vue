@@ -157,8 +157,11 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       const response = await saveModelConfig({
         content_model: multiModalConfig.value.contentAnalysis.model,
+        content_provider: multiModalConfig.value.contentAnalysis.provider,
         image_model: multiModalConfig.value.imageAnalysis.model,
-        video_model: multiModalConfig.value.videoAnalysis.model
+        image_provider: multiModalConfig.value.imageAnalysis.provider,
+        video_model: multiModalConfig.value.videoAnalysis.model,
+        video_provider: multiModalConfig.value.videoAnalysis.provider
       })
       if (response.code === 0) {
         return { success: true, message: '模型配置保存成功' }

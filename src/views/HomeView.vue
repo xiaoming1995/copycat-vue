@@ -139,24 +139,54 @@ onMounted(() => {
           console.log('📷 [历史加载] imageAnalysis:', imageAnalysis)
           console.log('📷 [历史加载] storedImages:', storedImages)
           
-          // 尝试从 source_content 中提取图片 URL（如果存储了的话）
+          // 尝试从 source_content 中提取内容（如果存储了的话）
           let imageUrls: string[] = []
+          let textContent = '' // 用于存储实际文案内容
           try {
             const sourceData = JSON.parse(project.source_content || '{}')
             console.log('📷 [历史加载] sourceData:', sourceData)
             if (Array.isArray(sourceData.images)) {
               imageUrls = sourceData.images
             }
+            // 提取文案内容（用于视频脚本显示）
+            if (typeof sourceData.content === 'string') {
+              textContent = sourceData.content
+            }
           } catch {
-            // source_content 可能是纯文本，忽略
-            console.log('📷 [历史加载] source_content 不是 JSON')
+            // source_content 可能是纯文本，直接使用
+            console.log('📷 [历史加载] source_content 不是 JSON，作为纯文本处理')
+            textContent = project.source_content || ''
           }
           console.log('📷 [历史加载] imageUrls:', imageUrls)
           
           // 设置分析数据
+          // 根据项目的 content_type 判断类型，支持多种推断方式
+          let projectContentType: 'video' | 'images' = 'images'
+          
+          // 1. 优先使用项目的 content_type 字段
+          if (project.content_type === 'video') {
+            projectContentType = 'video'
+          }
+          // 2. 其次从分析结果中的视频专属字段推断（支持新旧两版字段名）
+          else if (
+            // 旧版字段名
+            (result as any).hook || (result as any).visual || (result as any).audio || 
+            (result as any).narrative || (result as any).ppp || (result as any).persona || 
+            (result as any).viral_logic ||
+            // 新版字段名
+            (result as any).hook_strategy || (result as any).visual_direction || 
+            (result as any).audio_atmosphere || (result as any).narrative_logic || 
+            (result as any).ppp_model || (result as any).viral_mechanics
+          ) {
+            // 如果有视频专属分析字段，判断为视频类型
+            projectContentType = 'video'
+          }
+          
+          console.log('📦 [历史加载] 判断内容类型:', projectContentType, 'project.content_type:', project.content_type)
+          
           analysisData.value = {
-            contentType: 'images', // 默认为图文
-            emotions: result.emotion?.tags || [],
+            contentType: projectContentType,
+            emotions: result.emotion?.tags || (result as any).viral_mechanics?.emotional_triggers || [],
             structure: result.structure || [],
             titleAnalysis: result.title_analysis ? {
               original: result.title_analysis.original,
@@ -164,17 +194,44 @@ onMounted(() => {
               techniques: result.title_analysis.techniques,
               score: result.title_analysis.score
             } : undefined,
-            images: imageUrls.map((url, index) => {
-              const imgData = storedImages[index] || {}
-              return {
-                url,
-                shootingTechnique: (imgData.technique as string) || `图片 ${index + 1}`,
-                highlight: (imgData.highlight as string) || '视觉亮点',
-                composition: imgData.composition as string | undefined,
-                colorTone: imgData.color_tone as string | undefined,
-                mood: imgData.mood as string | undefined,
-                imagePrompt: imgData.image_prompt as string | undefined
+            // 视频专属分析字段（从分析结果中透传 - 旧版）
+            hook: (result as any).hook,
+            golden_quotes: (result as any).golden_quotes,
+            narrative: (result as any).narrative,
+            ppp: (result as any).ppp,
+            persona: (result as any).persona,
+            viral_logic: (result as any).viral_logic,
+            visual: (result as any).visual,
+            audio: (result as any).audio,
+            // 视频专属分析字段（新版）
+            hook_strategy: (result as any).hook_strategy,
+            narrative_logic: (result as any).narrative_logic,
+            visual_direction: (result as any).visual_direction,
+            audio_atmosphere: (result as any).audio_atmosphere,
+            ppp_model: (result as any).ppp_model,
+            viral_mechanics: (result as any).viral_mechanics,
+            tags_and_seo: (result as any)['tags_&_seo'],
+            // 视频数据（仅视频类型）
+            ...(projectContentType === 'video' ? {
+              video: {
+                shootingTechnique: '基于 AI 分析的拍摄技巧',
+                highlight: result.emotion?.primary || '情绪亮点',
+                script: textContent.substring(0, 200) || ''
               }
+            } : {
+              // 图片数据（仅图文类型）
+              images: imageUrls.map((url, index) => {
+                const imgData = storedImages[index] || {}
+                return {
+                  url,
+                  shootingTechnique: (imgData.technique as string) || `图片 ${index + 1}`,
+                  highlight: (imgData.highlight as string) || '视觉亮点',
+                  composition: imgData.composition as string | undefined,
+                  colorTone: imgData.color_tone as string | undefined,
+                  mood: imgData.mood as string | undefined,
+                  imagePrompt: imgData.image_prompt as string | undefined
+                }
+              })
             })
           }
           console.log('📦 [历史加载] 最终 analysisData:', analysisData.value)
@@ -297,7 +354,7 @@ const handleConfirmAnalyze = async () => {
       // 转换为前端显示格式
       analysisData.value = {
         contentType: crawledNote.value.type === 'video' ? 'video' : 'images',
-        emotions: cachedResult.emotion?.tags || [],
+        emotions: cachedResult.emotion?.tags || (cachedResult as any).viral_mechanics?.emotional_triggers || [],
         structure: cachedResult.structure || [],
         titleAnalysis: cachedResult.title_analysis ? {
           original: cachedResult.title_analysis.original,
@@ -305,6 +362,23 @@ const handleConfirmAnalyze = async () => {
           techniques: cachedResult.title_analysis.techniques,
           score: cachedResult.title_analysis.score
         } : undefined,
+        // 视频专属分析字段（从缓存结果中透传 - 旧版）
+        hook: (cachedResult as any).hook,
+        golden_quotes: (cachedResult as any).golden_quotes,
+        narrative: (cachedResult as any).narrative,
+        ppp: (cachedResult as any).ppp,
+        persona: (cachedResult as any).persona,
+        viral_logic: (cachedResult as any).viral_logic,
+        visual: (cachedResult as any).visual,
+        audio: (cachedResult as any).audio,
+        // 视频专属分析字段（新版）
+        hook_strategy: (cachedResult as any).hook_strategy,
+        narrative_logic: (cachedResult as any).narrative_logic,
+        visual_direction: (cachedResult as any).visual_direction,
+        audio_atmosphere: (cachedResult as any).audio_atmosphere,
+        ppp_model: (cachedResult as any).ppp_model,
+        viral_mechanics: (cachedResult as any).viral_mechanics,
+        tags_and_seo: (cachedResult as any)['tags_&_seo'],
         ...(crawledNote.value.type === 'video' ? {
           video: {
             shootingTechnique: '基于 AI 分析的拍摄技巧',
@@ -360,7 +434,8 @@ const handleConfirmAnalyze = async () => {
         const analysisResponse = await analyzeContent({
           title: previewData.value?.title || '',
           content: crawledNote.value.content,
-          project_id: currentProjectId.value
+          project_id: currentProjectId.value,
+          content_type: crawledNote.value.type === 'video' ? 'video' : 'text'
         })
         
         if (analysisResponse.code === 0 && analysisResponse.data) {
@@ -371,7 +446,7 @@ const handleConfirmAnalyze = async () => {
           // 转换为前端显示格式
           analysisData.value = {
             contentType: crawledNote.value.type === 'video' ? 'video' : 'images',
-            emotions: analysisResponse.data.emotion?.tags || [],
+            emotions: analysisResponse.data.emotion?.tags || (analysisResponse.data as any).viral_mechanics?.emotional_triggers || [],
             structure: analysisResponse.data.structure || [],
             titleAnalysis: analysisResponse.data.title_analysis ? {
               original: analysisResponse.data.title_analysis.original,
@@ -379,6 +454,23 @@ const handleConfirmAnalyze = async () => {
               techniques: analysisResponse.data.title_analysis.techniques,
               score: analysisResponse.data.title_analysis.score
             } : undefined,
+            // 视频专属分析字段（从后端直接透传 - 旧版）
+            hook: (analysisResponse.data as any).hook,
+            golden_quotes: (analysisResponse.data as any).golden_quotes,
+            narrative: (analysisResponse.data as any).narrative,
+            ppp: (analysisResponse.data as any).ppp,
+            persona: (analysisResponse.data as any).persona,
+            viral_logic: (analysisResponse.data as any).viral_logic,
+            visual: (analysisResponse.data as any).visual,
+            audio: (analysisResponse.data as any).audio,
+            // 视频专属分析字段（新版）
+            hook_strategy: (analysisResponse.data as any).hook_strategy,
+            narrative_logic: (analysisResponse.data as any).narrative_logic,
+            visual_direction: (analysisResponse.data as any).visual_direction,
+            audio_atmosphere: (analysisResponse.data as any).audio_atmosphere,
+            ppp_model: (analysisResponse.data as any).ppp_model,
+            viral_mechanics: (analysisResponse.data as any).viral_mechanics,
+            tags_and_seo: (analysisResponse.data as any)['tags_&_seo'],
             ...(crawledNote.value.type === 'video' ? {
               video: {
                 shootingTechnique: '基于 AI 分析的拍摄技巧',
@@ -650,6 +742,37 @@ const formatSource = (source: string) => {
                   :class="{ 'line-clamp-4': !showFullContent, 'max-h-60 overflow-y-auto': showFullContent }"
                 >{{ previewData.content || previewData.summary }}</p>
               </div>
+
+              <!-- 视频展示（始终显示，不需要展开） -->
+              <div v-if="crawledNote?.type === 'video' && crawledNote?.video?.url" class="mt-4 bg-gray-50 p-4 rounded-lg">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-sm font-medium text-gray-700">🎬 视频内容</span>
+                  <span class="text-xs text-gray-500" v-if="crawledNote.video.duration">
+                    时长: {{ Math.floor(crawledNote.video.duration / 60) }}:{{ String(crawledNote.video.duration % 60).padStart(2, '0') }}
+                  </span>
+                </div>
+                <div class="relative rounded-lg overflow-hidden bg-black aspect-video">
+                  <video 
+                    :src="crawledNote.video.url" 
+                    :poster="crawledNote.video.cover_url || crawledNote.cover_url"
+                    controls
+                    class="w-full h-full object-contain"
+                    preload="metadata"
+                  >
+                    您的浏览器不支持 video 标签
+                  </video>
+                </div>
+              </div>
+              <!-- 视频封面（当没有视频URL但是视频类型时） -->
+              <div v-else-if="crawledNote?.type === 'video'" class="mt-4 bg-gray-50 p-4 rounded-lg">
+                <span class="text-sm font-medium text-gray-700 block mb-3">🎬 视频封面</span>
+                <div class="relative rounded-lg overflow-hidden bg-gray-100">
+                  <img :src="crawledNote.cover_url" alt="视频封面" class="w-full max-h-80 object-contain" />
+                  <div class="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <span class="text-white text-sm bg-black/50 px-3 py-1 rounded">视频内容（请在小红书APP内观看）</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -666,6 +789,37 @@ const formatSource = (source: string) => {
                   class="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 hover:scale-105 transition-all"
                 >
                   <img :src="img" :alt="`图片${idx + 1}`" class="w-full h-full object-cover" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 视频展示 -->
+            <div v-if="crawledNote?.type === 'video' && crawledNote?.video?.url" class="mt-4">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-sm font-medium text-gray-700">🎬 视频内容</span>
+                <span class="text-xs text-gray-500" v-if="crawledNote.video.duration">
+                  时长: {{ Math.floor(crawledNote.video.duration / 60) }}:{{ String(crawledNote.video.duration % 60).padStart(2, '0') }}
+                </span>
+              </div>
+              <div class="relative rounded-lg overflow-hidden bg-black aspect-video">
+                <video 
+                  :src="crawledNote.video.url" 
+                  :poster="crawledNote.video.cover_url || crawledNote.cover_url"
+                  controls
+                  class="w-full h-full object-contain"
+                  preload="metadata"
+                >
+                  您的浏览器不支持 video 标签
+                </video>
+              </div>
+            </div>
+            <!-- 视频封面（当没有视频URL但有封面时） -->
+            <div v-else-if="crawledNote?.type === 'video' && crawledNote?.cover_url && !crawledNote?.video?.url" class="mt-4">
+              <span class="text-sm font-medium text-gray-700 block mb-3">🎬 视频封面</span>
+              <div class="relative rounded-lg overflow-hidden bg-gray-100">
+                <img :src="crawledNote.cover_url" alt="视频封面" class="w-full max-h-80 object-contain" />
+                <div class="absolute inset-0 flex items-center justify-center bg-black/30">
+                  <span class="text-white text-sm">视频内容（暂无直接链接）</span>
                 </div>
               </div>
             </div>

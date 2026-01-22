@@ -52,8 +52,11 @@ export interface SaveApiConfigRequest {
 // 保存模型配置请求
 export interface SaveModelConfigRequest {
     content_model: string
+    content_provider: string
     image_model: string
+    image_provider: string
     video_model: string
+    video_provider: string
 }
 
 // 保存生成设置请求

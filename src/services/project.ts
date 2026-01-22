@@ -13,6 +13,7 @@ export interface Project {
     user_id: number
     source_url?: string
     source_content: string
+    content_type?: 'text' | 'images' | 'video'  // 内容类型
     analysis_result?: Record<string, unknown>
     new_topic?: string
     generated_content?: string

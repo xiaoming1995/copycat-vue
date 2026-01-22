@@ -26,6 +26,63 @@ export interface TitleAnalysisData {
   score: number
 }
 
+// 视频分析专属字段
+export interface HookAnalysis {
+  type: string           // 开头类型
+  description: string    // 描述
+  duration: string       // 时长
+  effectiveness: number  // 有效性评分
+}
+
+export interface NarrativeAnalysis {
+  structure: string      // 叙事结构
+  pacing: string         // 节奏
+  techniques: string[]   // 叙事技巧
+}
+
+export interface PPPAnalysis {
+  people: string         // 人物
+  place: string          // 场景
+  product: string        // 产品
+}
+
+export interface PersonaAnalysis {
+  type: string           // 人设类型
+  traits: string[]       // 人设特点
+  trust_building: string // 信任建立方式
+}
+
+export interface ViralLogicAnalysis {
+  core: string                   // 核心逻辑
+  triggers: string[]             // 触发点
+  replicable_elements: string[]  // 可复用元素
+}
+
+// 剪辑分析
+export interface EditingAnalysis {
+  style: string        // 剪辑风格
+  techniques: string[] // 剪辑技巧
+  transitions: string[] // 转场效果
+}
+
+// 视觉分析
+export interface VisualAnalysis {
+  scenes: string[]               // 场景描述
+  composition: string            // 画面构图
+  camera_movement: string | string[] // 运镜手法（支持 string 或数组）
+  editing?: EditingAnalysis      // 剪辑分析
+  color_tone: string             // 色调
+  lighting: string               // 光线
+}
+
+// 音频分析
+export interface AudioAnalysis {
+  bgm_style: string      // BGM风格
+  bgm_match: string      // BGM与内容匹配度
+  voice_style: string    // 人声风格
+  sound_effects: string[] // 音效
+}
+
 export interface AnalysisData {
   contentType: ContentType
   emotions: string[]
@@ -33,6 +90,62 @@ export interface AnalysisData {
   titleAnalysis?: TitleAnalysisData
   video?: VideoAnalysis
   images?: ImageAnalysisItem[]
+  // 视频专属分析字段（旧版）
+  hook?: HookAnalysis
+  golden_quotes?: string[]
+  narrative?: NarrativeAnalysis
+  ppp?: PPPAnalysis
+  persona?: PersonaAnalysis
+  viral_logic?: ViralLogicAnalysis
+  visual?: VisualAnalysis
+  audio?: AudioAnalysis
+  // 视频专属分析字段（新版）
+  hook_strategy?: HookStrategyAnalysis
+  narrative_logic?: NarrativeLogicAnalysis
+  visual_direction?: VisualDirectionAnalysis
+  audio_atmosphere?: AudioAtmosphereAnalysis
+  ppp_model?: PPPAnalysis
+  viral_mechanics?: ViralMechanicsAnalysis
+  tags_and_seo?: TagsAndSEOAnalysis
+}
+
+// 新版分析类型
+export interface HookStrategyAnalysis {
+  type: string
+  description: string
+  estimated_duration: string
+  effectiveness_score: number
+}
+
+export interface NarrativeLogicAnalysis {
+  structure_type: string
+  pacing: string
+  golden_quotes: string[]
+}
+
+export interface VisualDirectionAnalysis {
+  suggested_scenes: string[]
+  composition_vibe: string
+  camera_movement_suggestion: string
+  editing_style: string
+}
+
+export interface AudioAtmosphereAnalysis {
+  bgm_style: string
+  voice_tone: string
+  sound_effects: string[]
+}
+
+export interface ViralMechanicsAnalysis {
+  core_logic: string
+  emotional_triggers: string[]
+  replicable_elements: string[]
+}
+
+export interface TagsAndSEOAnalysis {
+  keywords: string[]
+  emotion_intensity: number
+  word_count: number | string
 }
 
 export interface HistoryItem {

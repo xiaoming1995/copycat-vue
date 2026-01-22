@@ -54,6 +54,7 @@ export interface AnalyzeRequest {
     title?: string
     content: string
     project_id?: string
+    content_type?: 'text' | 'video' | 'images'  // 内容类型
 }
 
 // 图片分析请求

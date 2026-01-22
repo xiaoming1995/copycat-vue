@@ -140,6 +140,224 @@ const copyToClipboard = async (text: string) => {
         </div>
       </div>
 
+      <!-- 视频专属分析卡片 -->
+      <!-- 1. 开头钩子 (支持新旧两版: hook / hook_strategy) -->
+      <div v-if="result.contentType === 'video' && (result.hook || result.hook_strategy)" class="md:col-span-1 rounded-xl bg-gradient-to-r from-rose-50 to-pink-50 p-6 shadow-md ring-1 ring-rose-200">
+        <h3 class="flex items-center text-lg font-semibold text-gray-900 mb-4">
+          <span class="mr-2 text-2xl">🎣</span> 开头钩子
+          <span class="ml-auto text-rose-600 text-lg font-bold">{{ result.hook?.effectiveness || result.hook_strategy?.effectiveness_score || 0 }}/10</span>
+        </h3>
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-1 bg-rose-100 text-rose-700 text-xs font-medium rounded">{{ result.hook?.type || result.hook_strategy?.type }}</span>
+            <span class="text-xs text-gray-500">{{ result.hook?.duration || result.hook_strategy?.estimated_duration }}</span>
+          </div>
+          <p class="text-sm text-gray-700">{{ result.hook?.description || result.hook_strategy?.description }}</p>
+        </div>
+      </div>
+
+      <!-- 2. 视频金句 (支持新版: narrative_logic.golden_quotes) -->
+      <div v-if="result.contentType === 'video' && (result.golden_quotes?.length || result.narrative_logic?.golden_quotes?.length)" class="md:col-span-2 rounded-xl bg-gradient-to-r from-yellow-50 to-amber-50 p-6 shadow-md ring-1 ring-yellow-200">
+        <h3 class="flex items-center text-lg font-semibold text-gray-900 mb-4">
+          <span class="mr-2 text-2xl">✨</span> 视频金句
+        </h3>
+        <div class="space-y-2">
+          <div v-for="(quote, idx) in (result.golden_quotes || result.narrative_logic?.golden_quotes || [])" :key="idx" class="flex items-start gap-2">
+            <span class="text-amber-500 mt-1">❝</span>
+            <p class="text-sm text-gray-700 italic">{{ quote }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 叙事分析 (支持新版: narrative_logic) -->
+      <div v-if="result.contentType === 'video' && (result.narrative || result.narrative_logic)" class="md:col-span-1 rounded-xl bg-gradient-to-r from-sky-50 to-blue-50 p-6 shadow-md ring-1 ring-sky-200">
+        <h3 class="flex items-center text-lg font-semibold text-gray-900 mb-4">
+          <span class="mr-2 text-2xl">📖</span> 叙事分析
+        </h3>
+        <div class="space-y-3">
+          <div>
+            <span class="text-xs font-semibold text-sky-600 uppercase">结构</span>
+            <p class="text-sm text-gray-900 font-medium">{{ result.narrative?.structure || result.narrative_logic?.structure_type }}</p>
+          </div>
+          <div>
+            <span class="text-xs font-semibold text-sky-600 uppercase">节奏</span>
+            <p class="text-sm text-gray-700">{{ result.narrative?.pacing || result.narrative_logic?.pacing }}</p>
+          </div>
+          <div v-if="result.narrative?.techniques?.length">
+            <span class="text-xs font-semibold text-sky-600 uppercase">技巧</span>
+            <div class="flex flex-wrap gap-1 mt-1">
+              <span v-for="tech in result.narrative.techniques" :key="tech" class="px-2 py-0.5 bg-sky-100 text-sky-700 text-xs rounded">{{ tech }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 人货场 (支持新版: ppp_model) -->
+      <div v-if="result.contentType === 'video' && (result.ppp || result.ppp_model)" class="md:col-span-1 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 p-6 shadow-md ring-1 ring-emerald-200">
+        <h3 class="flex items-center text-lg font-semibold text-gray-900 mb-4">
+          <span class="mr-2 text-2xl">🛒</span> 人货场
+        </h3>
+        <div class="space-y-3">
+          <div>
+            <span class="text-xs font-semibold text-emerald-600 uppercase">👤 人物</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.ppp?.people || result.ppp_model?.people }}</p>
+          </div>
+          <div>
+            <span class="text-xs font-semibold text-emerald-600 uppercase">📍 场景</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.ppp?.place || result.ppp_model?.place }}</p>
+          </div>
+          <div>
+            <span class="text-xs font-semibold text-emerald-600 uppercase">💎 产品</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.ppp?.product || result.ppp_model?.product }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. 人设分析 -->
+      <div v-if="result.contentType === 'video' && result.persona" class="md:col-span-1 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 p-6 shadow-md ring-1 ring-violet-200">
+        <h3 class="flex items-center text-lg font-semibold text-gray-900 mb-4">
+          <span class="mr-2 text-2xl">👤</span> 人设分析
+        </h3>
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-1 bg-violet-100 text-violet-700 text-xs font-medium rounded">{{ result.persona.type }}</span>
+          </div>
+          <div v-if="result.persona.traits?.length">
+            <span class="text-xs font-semibold text-violet-600 uppercase">人设特点</span>
+            <div class="flex flex-wrap gap-1 mt-1">
+              <span v-for="trait in result.persona.traits" :key="trait" class="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs rounded">{{ trait }}</span>
+            </div>
+          </div>
+          <div>
+            <span class="text-xs font-semibold text-violet-600 uppercase">信任建立</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.persona.trust_building }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. 爆款逻辑 (支持新版: viral_mechanics) -->
+      <div v-if="result.contentType === 'video' && (result.viral_logic || result.viral_mechanics)" class="md:col-span-3 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 p-6 shadow-md ring-1 ring-red-200">
+        <h3 class="flex items-center text-lg font-semibold text-gray-900 mb-4">
+          <span class="mr-2 text-2xl">🔥</span> 爆款逻辑
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- 核心逻辑 -->
+          <div v-if="result.viral_logic?.core || result.viral_mechanics?.core_logic">
+            <span class="text-xs font-semibold text-red-600 uppercase">核心逻辑</span>
+            <p class="text-sm text-gray-900 font-medium mt-1">{{ result.viral_logic?.core || result.viral_mechanics?.core_logic }}</p>
+          </div>
+          <!-- 情绪触发点 -->
+          <div v-if="result.viral_logic?.triggers?.length || result.viral_mechanics?.emotional_triggers?.length">
+            <span class="text-xs font-semibold text-red-600 uppercase">情绪触发点</span>
+            <div class="flex flex-wrap gap-1 mt-1">
+              <span v-for="trigger in (result.viral_logic?.triggers || result.viral_mechanics?.emotional_triggers)" :key="trigger" class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">{{ trigger }}</span>
+            </div>
+          </div>
+          <!-- 可复用元素 -->
+          <div v-if="result.viral_logic?.replicable_elements?.length || result.viral_mechanics?.replicable_elements?.length">
+            <span class="text-xs font-semibold text-orange-600 uppercase">可复用元素</span>
+            <div class="flex flex-wrap gap-1 mt-1">
+              <span v-for="elem in (result.viral_logic?.replicable_elements || result.viral_mechanics?.replicable_elements)" :key="elem" class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">{{ elem }}</span>
+            </div>
+          </div>
+        </div>
+        <!-- 调试信息 (关闭) -->
+        <div v-if="false" class="mt-4 p-2 bg-gray-100 text-xs text-gray-600 break-all">
+          <div>contentType: {{ result.contentType }}</div>
+          <div>viral_logic: {{ result.viral_logic ? JSON.stringify(result.viral_logic) : 'undefined' }}</div>
+          <div>viral_mechanics: {{ result.viral_mechanics ? JSON.stringify(result.viral_mechanics) : 'undefined' }}</div>
+        </div>
+      </div>
+
+      <!-- 7. 视觉分析 (支持新版: visual_direction) -->
+      <div v-if="result.contentType === 'video' && (result.visual || result.visual_direction)" class="md:col-span-2 rounded-xl bg-gradient-to-r from-cyan-50 to-blue-50 p-6 shadow-md ring-1 ring-cyan-200">
+        <h3 class="flex items-center text-lg font-semibold text-gray-900 mb-4">
+          <span class="mr-2 text-2xl">🎬</span> 视觉分析
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-if="result.visual?.composition || result.visual_direction?.composition_vibe">
+            <span class="text-xs font-semibold text-cyan-600 uppercase">画面构图</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.visual?.composition || result.visual_direction?.composition_vibe }}</p>
+          </div>
+          <div v-if="result.visual?.camera_movement || result.visual_direction?.camera_movement_suggestion">
+            <span class="text-xs font-semibold text-cyan-600 uppercase">运镜手法</span>
+            <!-- 如果是数组 -->
+            <div v-if="Array.isArray(result.visual?.camera_movement)" class="flex flex-wrap gap-1 mt-1">
+              <span v-for="cam in result.visual.camera_movement" :key="cam" class="px-2 py-0.5 bg-cyan-100 text-cyan-700 text-xs rounded">{{ cam }}</span>
+            </div>
+            <!-- 如果是字符串 -->
+            <p v-else class="text-sm text-gray-700 mt-1">{{ result.visual?.camera_movement || result.visual_direction?.camera_movement_suggestion }}</p>
+          </div>
+          <div v-if="result.visual?.color_tone">
+            <span class="text-xs font-semibold text-cyan-600 uppercase">色调风格</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.visual?.color_tone }}</p>
+          </div>
+          <div v-if="result.visual?.lighting">
+            <span class="text-xs font-semibold text-cyan-600 uppercase">光线运用</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.visual?.lighting }}</p>
+          </div>
+          <div v-if="result.visual_direction?.editing_style">
+            <span class="text-xs font-semibold text-cyan-600 uppercase">剪辑风格</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.visual_direction?.editing_style }}</p>
+          </div>
+          <div v-if="(result.visual?.scenes?.length || result.visual_direction?.suggested_scenes?.length)" class="md:col-span-2">
+            <span class="text-xs font-semibold text-cyan-600 uppercase">场景分析</span>
+            <div class="flex flex-wrap gap-2 mt-1">
+              <span v-for="(scene, idx) in (result.visual?.scenes || result.visual_direction?.suggested_scenes)" :key="idx" class="px-2 py-1 bg-cyan-100 text-cyan-700 text-xs rounded">{{ scene }}</span>
+            </div>
+          </div>
+          <!-- 剪辑分析 -->
+          <div v-if="result.visual?.editing" class="md:col-span-2 mt-2 pt-2 border-t border-cyan-100">
+            <span class="text-xs font-semibold text-blue-600 uppercase">✂️ 剪辑分析</span>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+              <div v-if="result.visual.editing.style">
+                <span class="text-xs text-gray-500">风格</span>
+                <p class="text-sm text-gray-700">{{ result.visual.editing.style }}</p>
+              </div>
+              <div v-if="result.visual.editing.techniques?.length">
+                <span class="text-xs text-gray-500">技巧</span>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <span v-for="tech in result.visual.editing.techniques" :key="tech" class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">{{ tech }}</span>
+                </div>
+              </div>
+              <div v-if="result.visual.editing.transitions?.length">
+                <span class="text-xs text-gray-500">转场</span>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <span v-for="trans in result.visual.editing.transitions" :key="trans" class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">{{ trans }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. 音频分析 (支持新版: audio_atmosphere) -->
+      <div v-if="result.contentType === 'video' && (result.audio || result.audio_atmosphere)" class="md:col-span-1 rounded-xl bg-gradient-to-r from-fuchsia-50 to-pink-50 p-6 shadow-md ring-1 ring-fuchsia-200">
+        <h3 class="flex items-center text-lg font-semibold text-gray-900 mb-4">
+          <span class="mr-2 text-2xl">🎵</span> 音频分析
+        </h3>
+        <div class="space-y-3">
+          <div v-if="result.audio?.bgm_style || result.audio_atmosphere?.bgm_style">
+            <span class="text-xs font-semibold text-fuchsia-600 uppercase">BGM 风格</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.audio?.bgm_style || result.audio_atmosphere?.bgm_style }}</p>
+          </div>
+          <div v-if="result.audio?.bgm_match">
+            <span class="text-xs font-semibold text-fuchsia-600 uppercase">音乐匹配</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.audio?.bgm_match }}</p>
+          </div>
+          <div v-if="result.audio?.voice_style || result.audio_atmosphere?.voice_tone">
+            <span class="text-xs font-semibold text-fuchsia-600 uppercase">人声风格</span>
+            <p class="text-sm text-gray-700 mt-1">{{ result.audio?.voice_style || result.audio_atmosphere?.voice_tone }}</p>
+          </div>
+          <div v-if="(result.audio?.sound_effects?.length || result.audio_atmosphere?.sound_effects?.length)">
+            <span class="text-xs font-semibold text-fuchsia-600 uppercase">音效</span>
+            <div class="flex flex-wrap gap-1 mt-1">
+              <span v-for="effect in (result.audio?.sound_effects || result.audio_atmosphere?.sound_effects)" :key="effect" class="px-2 py-0.5 bg-fuchsia-100 text-fuchsia-700 text-xs rounded">{{ effect }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Images Analysis -->
       <div v-if="result.contentType === 'images' && result.images" class="md:col-span-3">
         <div class="rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-900/5">
@@ -195,8 +413,10 @@ const copyToClipboard = async (text: string) => {
         </div>
       </div>
 
-      <!-- 3. Structure Analysis (Common, adapts position based on type) -->
-      <div :class="[
+      <!-- 3. Structure Analysis (Common, adapts position based on type) - 仅当有结构数据时显示 -->
+      <div 
+        v-if="result.structure && result.structure.length > 0"
+        :class="[
           'rounded-xl bg-white p-6 shadow-md ring-1 ring-gray-900/5',
           result.contentType === 'text' ? 'md:col-span-2' : 'md:col-span-3'
         ]">
@@ -249,6 +469,28 @@ const copyToClipboard = async (text: string) => {
             </div>
           <p class="whitespace-pre-wrap text-gray-800 leading-relaxed">{{ generatedContent }}</p>
         </div>
+        
+        <!-- 换一个主题输入框 -->
+        <div class="mt-6 pt-4 border-t border-gray-100">
+          <p class="text-sm text-gray-500 mb-3">💡 想换个主题？输入新的关键词重新生成</p>
+          <div class="flex gap-3">
+            <input 
+              v-model="newTopic"
+              type="text" 
+              placeholder="例如：护眼仪、智能手表、咖啡机..." 
+              class="block w-full rounded-md border-0 py-2.5 px-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white"
+              @keyup.enter="handleGenerate"
+            />
+            <button 
+              @click="handleGenerate"
+              :disabled="isGenerating || !newTopic.trim()"
+              class="whitespace-nowrap rounded-md bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              换主题生成
+            </button>
+          </div>
+        </div>
+        
         <div class="mt-4 flex justify-end">
           <button 
             onclick="navigator.clipboard.writeText(this.getAttribute('data-content')).then(() => alert('已复制到剪贴板'))"

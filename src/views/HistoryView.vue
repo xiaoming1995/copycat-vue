@@ -36,6 +36,42 @@ const formatStatus = (status: string) => {
   return map[status] || { text: status, class: 'bg-gray-100 text-gray-700' }
 }
 
+const formatContentType = (contentType: string | undefined) => {
+  const map: Record<string, { text: string; icon: string; class: string }> = {
+    'video': { text: '视频', icon: '🎬', class: 'bg-purple-100 text-purple-700' },
+    'images': { text: '图文', icon: '🖼️', class: 'bg-orange-100 text-orange-700' },
+    'text': { text: '文本', icon: '📝', class: 'bg-gray-100 text-gray-700' }
+  }
+  return map[contentType || 'images'] || { text: '图文', icon: '🖼️', class: 'bg-orange-100 text-orange-700' }
+}
+
+// 从 source_content 中提取标题
+const extractTitle = (project: typeof projects.value[0]) => {
+  // 优先使用 new_topic（仿写主题）
+  if (project.new_topic) {
+    return `仿写主题：${project.new_topic}`
+  }
+  
+  // 尝试从 source_content 解析 JSON 获取 title
+  if (project.source_content) {
+    try {
+      const parsed = JSON.parse(project.source_content)
+      if (parsed.title) {
+        return parsed.title
+      }
+      // 如果有 content 字段，取前50个字符
+      if (parsed.content) {
+        return parsed.content.substring(0, 50) + (parsed.content.length > 50 ? '...' : '')
+      }
+    } catch {
+      // 不是 JSON，使用原始内容预览
+    }
+    return project.source_content.substring(0, 50) + (project.source_content.length > 50 ? '...' : '')
+  }
+  
+  return '无标题'
+}
+
 const toggleExpand = (id: string) => {
   if (expandedId.value === id) {
     expandedId.value = null
@@ -117,12 +153,6 @@ const goToAnalysis = (project: typeof projects.value[0]) => {
   
   router.push({ name: 'home', query: { continue: project.id } })
   console.log('🚀 [goToAnalysis] 已调用 router.push')
-}
-
-// 截取内容预览
-const getContentPreview = (content: string, maxLength = 100) => {
-  if (!content) return '无内容'
-  return content.length > maxLength ? content.substring(0, maxLength) + '...' : content
 }
 </script>
 
@@ -219,14 +249,17 @@ const getContentPreview = (content: string, maxLength = 100) => {
                 </div>
                 
                 <div class="flex-1 space-y-1">
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span :class="['inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset', formatContentType(project.content_type).class]">
+                      {{ formatContentType(project.content_type).icon }} {{ formatContentType(project.content_type).text }}
+                    </span>
                     <span :class="['inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset', formatStatus(project.status).class]">
                       {{ formatStatus(project.status).text }}
                     </span>
                     <span class="text-xs text-gray-500">{{ formatDate(project.created_at) }}</span>
                   </div>
-                  <h3 class="text-base font-semibold leading-6 text-gray-900 line-clamp-1">
-                    {{ project.new_topic ? `主题：${project.new_topic}` : getContentPreview(project.source_content, 50) }}
+                  <h3 class="text-base font-semibold leading-6 text-gray-900 line-clamp-2">
+                    {{ extractTitle(project) }}
                   </h3>
                   <p v-if="project.source_url" class="text-xs text-blue-600 truncate">
                     {{ project.source_url }}
