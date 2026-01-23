@@ -28,8 +28,9 @@ const successMsg = ref('')
 
 const tabs = [
   { id: 'contentAnalysis', name: '文案分析', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z' },
-  { id: 'imageAnalysis', name: '图片分析', icon: 'M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z' },
-  { id: 'videoAnalysis', name: '视频分析', icon: 'M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z' }
+  { id: 'imageAnalysis', name: '图片分析与生成', icon: 'M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z' },
+  { id: 'videoAnalysis', name: '视频分析与生成', icon: 'M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z' },
+  { id: 'speechSynthesis', name: '语音合成', icon: 'M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z' }
 ]
 
 const providers: { label: string; value: LLMProvider; icon: string }[] = [
@@ -54,6 +55,24 @@ const providerModels: Record<LLMProvider, string[]> = {
   anthropic: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307']
 }
 
+const speechProviderModels: Record<LLMProvider, string[]> = {
+  openai: ['tts-1', 'tts-1-hd'],
+  deepseek: [],
+  moonshot: [],
+  qwen: [],
+  hunyuan: [],
+  doubao: ['doubao-tts-v1'],
+  zhipu: [],
+  anthropic: []
+}
+
+const getModelsForTab = (tabId: string, provider: LLMProvider) => {
+  if (tabId === 'speechSynthesis') {
+    return speechProviderModels[provider] || []
+  }
+  return providerModels[provider] || []
+}
+
 const showMessage = (type: 'success' | 'error', msg: string) => {
   if (type === 'success') {
     successMsg.value = msg
@@ -67,11 +86,13 @@ const showMessage = (type: 'success' | 'error', msg: string) => {
 }
 
 const onTaskProviderChange = (tabId: string) => {
-  const config = multiModalConfig.value[tabId as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis']
-  const models = providerModels[config.provider as LLMProvider]
+  const config = multiModalConfig.value[tabId as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis' | 'speechSynthesis']
+  const models = getModelsForTab(tabId, config.provider as LLMProvider)
   if (config && models && models.length > 0) {
     // 自动切到该模型列表的第一个
     config.model = models[0] as string
+  } else {
+    config.model = ''
   }
 }
 
@@ -250,7 +271,7 @@ onMounted(async () => {
                 <div>
                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">执行服务商</label>
                    <select 
-                    v-model="multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis'].provider"
+                    v-model="multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis' | 'speechSynthesis'].provider"
                     @change="onTaskProviderChange(t.id)"
                     class="input-select"
                    >
@@ -260,11 +281,11 @@ onMounted(async () => {
                 <div>
                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">指定的 AI 模型</label>
                    <select 
-                    v-model="multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis'].model"
+                    v-model="multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis' | 'speechSynthesis'].model"
                     class="input-select"
                    >
                      <option 
-                      v-for="m in providerModels[multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis'].provider as LLMProvider]" 
+                      v-for="m in getModelsForTab(t.id, multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis' | 'speechSynthesis'].provider as LLMProvider)" 
                       :key="m" 
                       :value="m"
                      >

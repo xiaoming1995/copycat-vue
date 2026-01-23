@@ -63,6 +63,13 @@ const handleLogout = () => {
               >
                 批量分析
               </RouterLink>
+              <RouterLink 
+                to="/speech" 
+                class="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                active-class="!border-indigo-500 !text-gray-900"
+              >
+                语音合成
+              </RouterLink>
             </div>
           </div>
           <!-- 右侧：退出登录按钮 -->

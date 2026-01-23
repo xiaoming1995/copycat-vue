@@ -27,6 +27,7 @@ export interface MultiModalConfig {
   contentAnalysis: LLMConfig
   imageAnalysis: LLMConfig
   videoAnalysis: LLMConfig
+  speechSynthesis: LLMConfig
 }
 
 export type ConfigTab = keyof MultiModalConfig
@@ -42,7 +43,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const multiModalConfig = ref<MultiModalConfig>({
     contentAnalysis: { ...defaultLLMConfig },
     imageAnalysis: { ...defaultLLMConfig, model: 'gpt-4o' },
-    videoAnalysis: { ...defaultLLMConfig, model: 'gpt-4o' }
+    videoAnalysis: { ...defaultLLMConfig, model: 'gpt-4o' },
+    speechSynthesis: { ...defaultLLMConfig, model: 'tts-1' }
   })
 
   // 各提供商 API Key
@@ -107,6 +109,12 @@ export const useSettingsStore = defineStore('settings', () => {
             apiKey: response.data.video_analysis?.api_key || '',
             model: response.data.video_analysis?.model || 'gpt-4o',
             baseUrl: response.data.video_analysis?.base_url || ''
+          },
+          speechSynthesis: {
+            provider: (response.data.speech_synthesis?.provider as LLMProvider) || 'openai',
+            apiKey: response.data.speech_synthesis?.api_key || '',
+            model: response.data.speech_synthesis?.model || 'tts-1',
+            baseUrl: response.data.speech_synthesis?.base_url || ''
           }
         }
 
@@ -143,6 +151,10 @@ export const useSettingsStore = defineStore('settings', () => {
           provider: multiModalConfig.value.videoAnalysis.provider,
           base_url: multiModalConfig.value.videoAnalysis.baseUrl
         },
+        speech_synthesis: {
+          provider: multiModalConfig.value.speechSynthesis.provider,
+          base_url: multiModalConfig.value.speechSynthesis.baseUrl
+        },
         provider_keys: providerKeys.value
       })
       if (response.code === 0) {
@@ -167,7 +179,9 @@ export const useSettingsStore = defineStore('settings', () => {
         image_model: multiModalConfig.value.imageAnalysis.model,
         image_provider: multiModalConfig.value.imageAnalysis.provider,
         video_model: multiModalConfig.value.videoAnalysis.model,
-        video_provider: multiModalConfig.value.videoAnalysis.provider
+        video_provider: multiModalConfig.value.videoAnalysis.provider,
+        speech_model: multiModalConfig.value.speechSynthesis.model,
+        speech_provider: multiModalConfig.value.speechSynthesis.provider
       })
       if (response.code === 0) {
         return { success: true, message: '模型配置保存成功' }

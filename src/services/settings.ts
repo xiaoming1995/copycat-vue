@@ -26,6 +26,7 @@ export interface MultiModalConfigResponse {
     content_analysis: LLMConfigItem
     image_analysis: LLMConfigItem
     video_analysis: LLMConfigItem
+    speech_synthesis: LLMConfigItem
     provider_keys: ProviderApiKeys
     generate_count: number
     default_task_type?: string
@@ -47,17 +48,23 @@ export interface SaveApiConfigRequest {
         provider: string
         base_url: string
     }
+    speech_synthesis: {
+        provider: string
+        base_url: string
+    }
     provider_keys: ProviderApiKeys
 }
 
 // 保存模型配置请求
 export interface SaveModelConfigRequest {
     content_model: string
-    content_provider: string
+    content_provider?: string
     image_model: string
-    image_provider: string
+    image_provider?: string
     video_model: string
-    video_provider: string
+    video_provider?: string
+    speech_model: string
+    speech_provider?: string
 }
 
 // 保存生成设置请求

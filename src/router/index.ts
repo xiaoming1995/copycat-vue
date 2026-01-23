@@ -41,6 +41,12 @@ const router = createRouter({
       name: 'batch',
       component: () => import('../views/BatchView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/speech',
+      name: 'speech',
+      component: () => import('../views/SpeechView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

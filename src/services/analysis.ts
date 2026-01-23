@@ -89,3 +89,24 @@ export async function analyzeImages(data: AnalyzeImagesRequest): Promise<ApiResp
 export async function generateContent(data: GenerateRequest): Promise<ApiResponse<GenerateResult>> {
     return post<GenerateResult>('/generate', data)
 }
+
+// 语音合成请求
+export interface SpeechRequest {
+    text: string
+    voice: string
+    model?: string    // 模型 (可选)
+    project_id?: string
+}
+
+// 语音合成结果
+export interface SpeechResult {
+    audio_base64: string  // Base64 编码的音频
+    format: string        // 音频格式 (mp3)
+    characters?: number   // 合成的字符数
+}
+
+// 语音合成
+export async function generateSpeech(data: SpeechRequest): Promise<ApiResponse<SpeechResult>> {
+    return post<SpeechResult>('/speech/generate', data)
+}
+
