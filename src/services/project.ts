@@ -34,6 +34,7 @@ export interface ProjectListResponse {
 export interface CreateProjectRequest {
     source_url?: string
     source_content: string
+    content_type?: 'text' | 'images' | 'video'
 }
 
 // 更新项目请求

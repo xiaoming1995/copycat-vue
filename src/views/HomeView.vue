@@ -414,7 +414,8 @@ const handleConfirmAnalyze = async () => {
     }
     const result = await projectStore.createProject({
       source_url: urlContent.value,
-      source_content: JSON.stringify(sourceData)
+      source_content: JSON.stringify(sourceData),
+      content_type: crawledNote.value.type === 'video' ? 'video' : 'images'
     })
 
     if (!result.success) {
