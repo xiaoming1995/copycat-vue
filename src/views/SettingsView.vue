@@ -1,72 +1,46 @@
 <script setup lang="ts">
 import { useSettingsStore, type LLMProvider } from '../stores/settings'
 import { storeToRefs } from 'pinia'
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, computed, Transition } from 'vue'
 
 const settingsStore = useSettingsStore()
-const { multiModalConfig, providerKeys, generateCount, activeTab, isLoading } = storeToRefs(settingsStore)
+const { multiModalConfig, providerKeys, generateCount, isLoading } = storeToRefs(settingsStore)
 
-// Helper to get current config
-const currentConfig = computed(() => multiModalConfig.value[activeTab.value])
+// 1. 凭据管理逻辑
+const activeProvider = ref<LLMProvider>('openai')
+const showApiKey = ref(false)
 
-// Helper to get active tab name
-const activeTabName = computed(() => {
-  const tab = tabs.find(t => t.id === activeTab.value)
-  return tab ? tab.name : '模型'
+const currentProviderKey = computed({
+  get: () => providerKeys.value[activeProvider.value] || '',
+  set: (val: string) => {
+    providerKeys.value[activeProvider.value] = val
+  }
 })
 
-// Local loading states for independent button feedback
-const savingTaskType = ref(false)
-const savingModel = ref(false)
+// 2. 状态控制
+const savingCredentials = ref(false)
+const savingAllTasks = ref(false)
 const savingGenerate = ref(false)
+const showSuccess = ref(false)
+const showError = ref(false)
+const errorMsg = ref('')
+const successMsg = ref('')
 
 const tabs = [
-  { id: 'contentAnalysis', name: '文案分析与生成', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z' },
-  { id: 'imageAnalysis', name: '图片分析与生成', icon: 'M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z' },
-  { id: 'videoAnalysis', name: '视频分析与生成', icon: 'M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z' }
+  { id: 'contentAnalysis', name: '文案分析', icon: 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z' },
+  { id: 'imageAnalysis', name: '图片分析', icon: 'M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z' },
+  { id: 'videoAnalysis', name: '视频分析', icon: 'M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z' }
 ]
 
 const providers: { label: string; value: LLMProvider; icon: string }[] = [
-  { 
-    label: 'OpenAI', 
-    value: 'openai',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M22.28 9.82a6 6 0 0 0-.52-4.91 6.05 6.05 0 0 0-6.5-2.9A6.06 6.06 0 0 0 5 4.18a6 6 0 0 0-4 2.9 6.05 6.05 0 0 0 .74 7.1 6 6 0 0 0 .51 4.91 6.05 6.05 0 0 0 6.51 2.9A6.05 6.05 0 0 0 13.26 24a6.06 6.06 0 0 0 5.77-4.2 6 6 0 0 0 4-2.9 6.06 6.06 0 0 0-.75-7.08ZM13.25 22.85a4.76 4.76 0 0 1-3.28-.7 2.8 2.8 0 0 0-1.19.43l-1.08.42a4.85 4.85 0 0 1-3.86-4.71v-.9l2.58-1.5-.55-1.43-2.61.9a4.87 4.87 0 0 1-1.1-2.08 4.79 4.79 0 0 1-.36-1.84c0-.14 0-.27.01-.4a2.8 2.8 0 0 0 0-.54l.25-1.12.85-.33 2.22 1.29.53-1.45-2.11-1.22a4.86 4.86 0 0 1 1.69-2.28 4.78 4.78 0 0 1 2.42-.66 4.86 4.86 0 0 1 3.55 1.55l.57.84 2.12-1.22a4.78 4.78 0 0 1 4.4 0 4.86 4.86 0 0 1 2.27 3.03l.21 1.1-2.29 1.33.54 1.45 2.15-1.25a4.87 4.87 0 0 1 .5 2.58 4.76 4.76 0 0 1-1.06 2.66l-1.1.64-.55 1.49 2.16 1.25c-.48 1.41-1.58 2.54-3.03 3.12l-1.16.45-2.22-1.29-.55 1.44 2.11 1.23Zm-8.47-11.72a3.6 3.6 0 0 0 0-1.14 3.7 3.7 0 0 0-1.06 1.96l2.13 1.23a3.6 3.6 0 0 0 1.29-.82l-2.4-1.23Zm13.25 1.63a3.59 3.59 0 0 0 0-1.13 3.73 3.73 0 0 0 1.07-1.96l-2.13-1.23a3.62 3.62 0 0 0-1.3.82l2.32 1.23Zm-1.9-5.46a3.72 3.72 0 0 0-2.08-1.06l-1.22 2.12a3.62 3.62 0 0 0 .82 1.29l2.48-2.35Zm-8.23 10.97a3.68 3.68 0 0 0 2.08 1.06l1.22-2.12a3.6 3.6 0 0 0-.82-1.29l-2.48 2.35Zm2.66-7.8-1.22-2.11a3.73 3.73 0 0 0-2 1.42l2.4 1.41a3.63 3.63 0 0 0 .82-.72Z"/></svg>'
-  },
-  { 
-    label: 'DeepSeek', 
-    value: 'deepseek',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>'
-  },
-  {
-    label: 'Kimi (Moonshot)',
-    value: 'moonshot',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>'
-  },
-  {
-    label: '通义千问 (Qwen)',
-    value: 'qwen',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>'
-  },
-  {
-    label: '腾讯混元',
-    value: 'hunyuan',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
-  },
-  {
-    label: '豆包 (Doubao)',
-    value: 'doubao',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>'
-  },
-  {
-    label: '智谱 AI (GLM)',
-    value: 'zhipu',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>'
-  },
-  { 
-    label: 'Anthropic', 
-    value: 'anthropic',
-    icon: '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>'
-  }
+  { label: 'OpenAI', value: 'openai', icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.896zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/></svg>' },
+  { label: 'DeepSeek', value: 'deepseek', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>' },
+  { label: 'Kimi', value: 'moonshot', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>' },
+  { label: 'Qwen', value: 'qwen', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>' },
+  { label: 'Hunyuan', value: 'hunyuan', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
+  { label: '豆包', value: 'doubao', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>' },
+  { label: '智谱', value: 'zhipu', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>' },
+  { label: 'Claude', value: 'anthropic', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>' }
 ]
 
 const providerModels: Record<LLMProvider, string[]> = {
@@ -80,49 +54,6 @@ const providerModels: Record<LLMProvider, string[]> = {
   anthropic: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307']
 }
 
-const providerBaseUrls: Record<LLMProvider, string> = {
-  openai: 'https://api.openai.com/v1',
-  deepseek: 'https://api.deepseek.com',
-  moonshot: 'https://api.moonshot.cn/v1',
-  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  hunyuan: 'https://api.hunyuan.cloud.tencent.com/v1',
-  doubao: 'https://ark.cn-beijing.volces.com/api/v3',
-  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
-  anthropic: 'https://api.anthropic.com/v1'
-}
-
-// Watch provider change to reset model or set default, and load API Key
-watch(() => currentConfig.value.provider, (newProvider, oldProvider) => {
-  if (newProvider) {
-    // 保存旧提供商的 API Key（如果有变化且不是脱敏的 key）
-    if (oldProvider && currentConfig.value.apiKey && !currentConfig.value.apiKey.includes('****')) {
-      providerKeys.value[oldProvider] = currentConfig.value.apiKey
-    }
-    
-    // 加载新提供商的 API Key
-    currentConfig.value.apiKey = providerKeys.value[newProvider] || ''
-    
-    // Set default Base URL
-    if (providerBaseUrls[newProvider]) {
-      currentConfig.value.baseUrl = providerBaseUrls[newProvider]
-    }
-    
-    // Set default Model
-    if (providerModels[newProvider]) {
-      // If current model is not in the new provider's list, set to first one
-      if (!providerModels[newProvider].includes(currentConfig.value.model)) {
-        currentConfig.value.model = providerModels[newProvider][0] || ''
-      }
-    }
-  }
-})
-
-const showSuccess = ref(false)
-const showError = ref(false)
-const errorMsg = ref('')
-const successMsg = ref('')
-const showApiKey = ref(false) // 控制 API Key 明文/密文显示
-
 const showMessage = (type: 'success' | 'error', msg: string) => {
   if (type === 'success') {
     successMsg.value = msg
@@ -135,328 +66,255 @@ const showMessage = (type: 'success' | 'error', msg: string) => {
   }
 }
 
-// 页面加载时获取配置
-onMounted(async () => {
-  await settingsStore.fetchConfig()
-  
-  // 恢复保存的 Tab
-  const savedTab = localStorage.getItem('copycat_settings_active_tab')
-  if (savedTab && tabs.find(t => t.id === savedTab)) {
-    activeTab.value = savedTab as any
+const onTaskProviderChange = (tabId: string) => {
+  const config = multiModalConfig.value[tabId as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis']
+  const models = providerModels[config.provider as LLMProvider]
+  if (config && models && models.length > 0) {
+    // 自动切到该模型列表的第一个
+    config.model = models[0] as string
   }
-})
-
-// 1. 保存任务类型选择 (仅保存本地偏好)
-const handleSaveTaskType = async () => {
-  savingTaskType.value = true
-  // 模拟异步操作
-  await new Promise(resolve => setTimeout(resolve, 500))
-  localStorage.setItem('copycat_settings_active_tab', activeTab.value)
-  showMessage('success', '任务类型偏好保存成功')
-  savingTaskType.value = false
 }
 
-// 2. 保存模型设置 (合并了服务商、Key、URL、Model)
-const handleSaveModelSettings = async () => {
-  showSuccess.value = false
-  showError.value = false
-  savingModel.value = true
-  
-  // 同步当前 API Key 到 providerKeys
-  if (currentConfig.value.apiKey && !currentConfig.value.apiKey.includes('****')) {
-    providerKeys.value[currentConfig.value.provider] = currentConfig.value.apiKey
-  }
-  
+const handleSaveCredentials = async () => {
+  savingCredentials.value = true
   try {
-    // 并行执行两个保存操作
-    const results = await Promise.all([
-      settingsStore.saveApiConfigAction(),
-      settingsStore.saveModelConfigAction()
-    ])
-    
-    const failures = results.filter(r => !r.success)
-    if (failures.length > 0) {
-      showMessage('error', failures.map(f => f.message).join('; '))
-    } else {
-      showMessage('success', '模型配置保存成功')
-    }
-  } catch (error) {
-    showMessage('error', '保存过程中发生错误')
+    const res = await settingsStore.saveApiConfigAction()
+    if (res.success) showMessage('success', '凭据保存成功')
+    else showMessage('error', res.message)
   } finally {
-    savingModel.value = false
+    savingCredentials.value = false
   }
 }
 
-// 3. 保存生成设置
-const handleSaveGenerate = async () => {
-  showSuccess.value = false
-  showError.value = false
-  savingGenerate.value = true
-  
+const handleSaveTaskConfig = async () => {
+  savingAllTasks.value = true
   try {
-    const result = await settingsStore.saveGenerateConfigAction()
-    if (result.success) {
-      showMessage('success', '生成设置保存成功')
-    } else {
-      showMessage('error', result.message || '保存失败')
-    }
-  } catch (error) {
-    showMessage('error', '保存过程中发生错误')
+    const res = await settingsStore.saveModelConfigAction()
+    if (res.success) showMessage('success', '任务模型配置已保存')
+    else showMessage('error', res.message)
+  } finally {
+    savingAllTasks.value = false
+  }
+}
+
+
+
+const handleSaveGenerate = async () => {
+  savingGenerate.value = true
+  try {
+    const res = await settingsStore.saveGenerateConfigAction()
+    if (res.success) showMessage('success', '生成参数已更新')
   } finally {
     savingGenerate.value = false
   }
 }
+
+onMounted(async () => {
+  await settingsStore.fetchConfig()
+})
 </script>
 
 <template>
-  <div class="min-h-[calc(100vh-4rem)] bg-gray-50 py-10">
-    <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-[#f8fafc] py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-5xl mx-auto space-y-10">
       
-      <!-- Global Status Message (Fixed at top right) -->
-      <div class="fixed top-24 right-8 z-50 flex flex-col gap-2 pointer-events-none">
-        <div v-if="showSuccess" class="bg-white border border-green-100 text-green-800 px-4 py-3 rounded-xl shadow-xl flex items-center animate-slide-in pointer-events-auto ring-1 ring-green-900/5">
-           <div class="flex-shrink-0 bg-green-50 rounded-full p-1 mr-3">
-             <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-             </svg>
-           </div>
-           <span class="font-medium">{{ successMsg }}</span>
-        </div>
-        <div v-if="showError" class="bg-white border border-red-100 text-red-800 px-4 py-3 rounded-xl shadow-xl flex items-center animate-slide-in pointer-events-auto ring-1 ring-red-900/5">
-           <div class="flex-shrink-0 bg-red-50 rounded-full p-1 mr-3">
-             <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-             </svg>
-           </div>
-           <span class="font-medium">{{ errorMsg }}</span>
+      <!-- 消息提示 -->
+      <div class="fixed top-24 right-8 z-50 flex flex-col gap-3 pointer-events-none">
+        <Transition name="slide">
+          <div v-if="showSuccess" class="bg-white border-l-4 border-emerald-500 p-4 rounded-xl shadow-2xl flex items-center pointer-events-auto ring-1 ring-black/5">
+            <div class="bg-emerald-100 p-2 rounded-full mr-3 text-emerald-600">
+               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <span class="font-semibold text-slate-800">{{ successMsg }}</span>
+          </div>
+        </Transition>
+        <Transition name="slide">
+          <div v-if="showError" class="bg-white border-l-4 border-rose-500 p-4 rounded-xl shadow-2xl flex items-center pointer-events-auto ring-1 ring-black/5">
+            <div class="bg-rose-100 p-2 rounded-full mr-3 text-rose-600">
+               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <span class="font-semibold text-slate-800">{{ errorMsg }}</span>
+          </div>
+        </Transition>
+      </div>
+
+      <!-- 标题栏 -->
+      <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-200/60 overflow-hidden relative group">
+        <div class="absolute -top-24 -right-24 w-64 h-64 bg-indigo-50 rounded-full blur-3xl group-hover:bg-indigo-100 transition-colors duration-500"></div>
+        <div class="relative">
+          <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">智能配置中心</h1>
+          <p class="mt-2 text-slate-500 text-lg">统一管理您的 AI 算力凭据与任务调度</p>
         </div>
       </div>
 
-      <div class="flex flex-col gap-8">
-        
-        <!-- Header -->
-        <div class="relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-900/5">
-          <div class="absolute inset-0 h-full bg-gradient-to-r from-blue-600 to-indigo-600 opacity-90"></div>
-          <div class="absolute inset-0 h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
-          <div class="relative p-8 sm:p-10">
-            <h1 class="text-3xl font-bold tracking-tight text-white">配置中心</h1>
-            <p class="mt-2 text-lg text-indigo-100">自定义您的 AI 助手参数与行为</p>
+      <!-- 核心板块：1. 凭据中心 -->
+      <section class="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 overflow-hidden">
+        <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+          <div class="flex items-center gap-3">
+             <div class="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+             </div>
+             <h2 class="text-xl font-bold text-slate-900">API 凭据资产管理</h2>
           </div>
+          <button @click="handleSaveCredentials" :disabled="savingCredentials" class="btn-primary group">
+            <svg v-if="savingCredentials" class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            {{ savingCredentials ? '正在同步资产...' : '保存凭据' }}
+          </button>
         </div>
 
-        <!-- Module 1: Task Type Selection -->
-        <div class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
-           <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="h-2 w-2 rounded-full bg-blue-500"></div>
-                <h3 class="text-base font-semibold leading-6 text-gray-900">任务类型选择</h3>
-              </div>
-              <button
-                type="button"
-                @click="handleSaveTaskType"
-                :disabled="savingTaskType"
-                class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <svg v-if="savingTaskType" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                {{ savingTaskType ? '保存中...' : '保存' }}
-              </button>
-           </div>
-           <div class="p-6">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 <button
-                  v-for="tab in tabs"
-                  :key="tab.id"
-                  @click="activeTab = tab.id as any"
-                  class="relative group flex items-center p-4 rounded-xl border-2 transition-all duration-200"
-                  :class="[
-                    activeTab === tab.id
-                      ? 'border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-600'
-                      : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                  ]"
-                >
-                  <div class="mr-4 flex-shrink-0 p-2 rounded-lg transition-colors" :class="activeTab === tab.id ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" :d="tab.icon" />
-                    </svg>
-                  </div>
-                  <div class="text-left">
-                     <p class="text-sm font-semibold" :class="activeTab === tab.id ? 'text-indigo-900' : 'text-gray-900'">{{ tab.name }}</p>
-                     <p class="text-xs text-gray-500 mt-0.5">点击切换配置</p>
-                  </div>
-                  <div v-if="activeTab === tab.id" class="absolute top-3 right-3 h-2 w-2 rounded-full bg-indigo-600 ring-2 ring-white"></div>
-                </button>
-              </div>
-           </div>
-        </div>
-
-        <!-- Module 2: Model Settings (Provider, Key, URL, Model) -->
-        <div class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <div class="h-2 w-2 rounded-full bg-indigo-500"></div>
-              <h3 class="text-base font-semibold leading-6 text-gray-900">{{ activeTabName }}模型配置</h3>
-            </div>
-            <button
-              type="button"
-              @click="handleSaveModelSettings"
-              :disabled="savingModel"
-              class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        <div class="p-8">
+          <div class="flex flex-wrap gap-4 mb-10">
+            <button 
+              v-for="p in providers" 
+              :key="p.value"
+              @click="activeProvider = p.value"
+              class="flex items-center gap-3 px-6 py-4 rounded-2xl border-2 transition-all duration-300 relative group"
+              :class="activeProvider === p.value ? 'border-indigo-600 bg-indigo-50/30 shadow-md' : 'border-slate-100 hover:border-slate-300'"
             >
-               <svg v-if="savingModel" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-               {{ savingModel ? '保存中...' : '保存配置' }}
+              <div class="w-6 h-6 text-slate-600 group-hover:text-indigo-600 transition-colors" :class="{ 'text-indigo-600': activeProvider === p.value }" v-html="p.icon"></div>
+              <span class="font-bold text-slate-800">{{ p.label }}</span>
+              <div v-if="activeProvider === p.value" class="absolute -top-2 -right-2 w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center border-4 border-white">
+                <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+              </div>
             </button>
           </div>
-          
-          <div class="p-6">
-            <!-- Section 1: Provider Selection -->
-            <div class="mb-8">
-              <label class="block text-sm font-medium leading-6 text-gray-900 mb-3">选择服务商</label>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div 
-                  v-for="provider in providers" 
-                  :key="provider.value"
-                  class="relative group cursor-pointer"
-                  @click="currentConfig.provider = provider.value"
-                >
-                  <div 
-                    class="flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 h-24"
-                    :class="[
-                      currentConfig.provider === provider.value 
-                        ? 'border-indigo-600 bg-indigo-50/50' 
-                        : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                    ]"
-                  >
-                     <div class="text-gray-900 mb-2 transition-transform duration-200 group-hover:scale-110" :class="{ 'text-indigo-600': currentConfig.provider === provider.value }" v-html="provider.icon"></div>
-                     <span class="text-xs font-medium text-center truncate w-full px-1" :class="currentConfig.provider === provider.value ? 'text-indigo-900' : 'text-gray-600'">{{ provider.label }}</span>
-                  </div>
-                  <div v-if="currentConfig.provider === provider.value" class="absolute top-2 right-2 h-2 w-2 rounded-full bg-indigo-600 ring-2 ring-white"></div>
-                </div>
-              </div>
-            </div>
-            
-            <hr class="border-gray-100 mb-8" />
 
-            <!-- Section 2: Details & Model -->
-            <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-3">
-              <!-- API Key -->
-              <div class="sm:col-span-1">
-                <label for="apiKey" class="block text-sm font-medium leading-6 text-gray-900">API Key</label>
-                <div class="mt-2 relative">
-                  <input
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-end animate-fade-in" :key="activeProvider">
+            <div class="md:col-span-12">
+               <p class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-2">正在配置 {{ providers.find(p => p.value === activeProvider)?.label }} 凭据</p>
+            </div>
+            <div class="md:col-span-7">
+               <label class="block text-sm font-bold text-slate-700 mb-2 ml-1">API Key</label>
+               <div class="relative">
+                  <input 
                     :type="showApiKey ? 'text' : 'password'"
-                    id="apiKey"
-                    v-model="currentConfig.apiKey"
-                    class="block w-full rounded-lg border-0 py-2.5 px-3 pr-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white"
-                    placeholder="sk-..."
+                    v-model="currentProviderKey"
+                    class="input-premium pl-14"
+                    :placeholder="`请输入您的 ${activeProvider} 密钥`"
                   />
-                  <button 
-                    type="button"
-                    @click="showApiKey = !showApiKey"
-                    class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg v-if="showApiKey" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                    </svg>
-                    <svg v-else class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Base URL -->
-              <div class="sm:col-span-1">
-                <label for="baseUrl" class="block text-sm font-medium leading-6 text-gray-900">API Base URL</label>
-                <div class="mt-2 relative">
-                   <input
-                    type="text"
-                    id="baseUrl"
-                    v-model="currentConfig.baseUrl"
-                    readonly
-                    class="block w-full rounded-lg border-0 py-2.5 px-3 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <!-- Model Select -->
-              <div class="sm:col-span-1">
-                <label for="model" class="block text-sm font-medium leading-6 text-gray-900">模型选择</label>
-                <div class="mt-2 relative">
-                  <select
-                    id="model"
-                    v-model="currentConfig.model"
-                    class="block w-full rounded-lg border-0 py-2.5 px-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white shadow-sm appearance-none"
-                  >
-                    <option v-for="model in providerModels[currentConfig.provider] || []" :key="model" :value="model">
-                      {{ model }}
-                    </option>
-                  </select>
-                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                  <div class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                   </div>
+                  <button @click="showApiKey = !showApiKey" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600">
+                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path v-if="showApiKey" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                       <g v-else>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </g>
+                     </svg>
+                  </button>
+               </div>
+            </div>
+            <div class="md:col-span-5">
+               <label class="block text-sm font-bold text-slate-700 mb-2 ml-1">代理端点 (Base URL)</label>
+               <input 
+                 v-model="multiModalConfig.contentAnalysis.baseUrl"
+                 readonly
+                 class="input-premium bg-slate-50 text-slate-400 cursor-not-allowed border-dashed"
+                 placeholder="后端代理固定地址"
+               />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 核心板块：2. 任务模型配置 -->
+      <section class="space-y-6">
+        <div class="flex items-center justify-between px-2">
+           <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-100">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+              </div>
+              <h2 class="text-xl font-bold text-slate-900">精细化模型调度</h2>
+           </div>
+           <button @click="handleSaveTaskConfig" :disabled="savingAllTasks" class="btn-primary-indigo shadow-indigo-100 shadow-xl">
+              确认所有调度变更
+           </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div 
+            v-for="t in tabs" 
+            :key="t.id"
+            class="bg-white rounded-[2rem] p-8 border border-slate-200/60 shadow-sm hover:shadow-xl transition-all duration-500 group"
+          >
+             <div class="flex items-center gap-3 mb-8">
+                <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-500">
+                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="t.icon" /></svg>
                 </div>
-              </div>
+                <h3 class="font-bold text-slate-800 text-lg">{{ t.name }}</h3>
+             </div>
 
-            </div>
+             <div class="space-y-6">
+                <div>
+                   <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">执行服务商</label>
+                   <select 
+                    v-model="multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis'].provider"
+                    @change="onTaskProviderChange(t.id)"
+                    class="input-select"
+                   >
+                     <option v-for="p in providers" :key="p.value" :value="p.value">{{ p.label }}</option>
+                   </select>
+                </div>
+                <div>
+                   <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">指定的 AI 模型</label>
+                   <select 
+                    v-model="multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis'].model"
+                    class="input-select"
+                   >
+                     <option 
+                      v-for="m in providerModels[multiModalConfig[t.id as 'contentAnalysis' | 'imageAnalysis' | 'videoAnalysis'].provider as LLMProvider]" 
+                      :key="m" 
+                      :value="m"
+                     >
+                       {{ m }}
+                     </option>
+                   </select>
+                </div>
+             </div>
           </div>
         </div>
+      </section>
 
-        <!-- Module 3: Generation Settings -->
-        <div class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <div class="h-2 w-2 rounded-full bg-purple-500"></div>
-              <h3 class="text-base font-semibold leading-6 text-gray-900">生成参数</h3>
-            </div>
-            <button
-              type="button"
-              @click="handleSaveGenerate"
-              :disabled="savingGenerate"
-              class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-               <svg v-if="savingGenerate" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-               {{ savingGenerate ? '保存中...' : '保存' }}
-            </button>
+      <!-- 核心板块：3. 其他策略 -->
+      <section class="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 overflow-hidden">
+        <div class="p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div class="flex-1">
+             <div class="flex items-center gap-3 mb-2">
+                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </div>
+                <h4 class="font-bold text-slate-800">副本生成策略</h4>
+             </div>
+             <p class="text-sm text-slate-500">调整每次文案仿写生成的数量建议 (1-10)</p>
           </div>
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-2">
-               <label for="batchSize" class="block text-sm font-medium leading-6 text-gray-900">单次生成数量</label>
-               <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">{{ generateCount }} 条</span>
-            </div>
-            
-            <div class="mt-2">
-              <input
-                type="range"
-                id="batchSizeRange"
-                v-model.number="generateCount"
-                min="1"
-                max="10"
-                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div class="flex justify-between text-xs text-gray-400 mt-1">
-                <span>1</span>
-                <span>5</span>
-                <span>10</span>
-              </div>
-            </div>
-             <p class="mt-3 text-xs text-gray-500">
-              增加生成数量可能会延长处理时间。建议设置为 1-3 条。
-            </p>
+          <div class="flex items-center gap-6 w-full md:w-auto">
+             <div class="flex items-center gap-4 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100 min-w-[200px]">
+                <input 
+                  type="range" 
+                  min="1" max="10" 
+                  v-model.number="generateCount"
+                  class="flex-1 accent-purple-600"
+                />
+                <span class="font-black text-purple-600 w-8 text-center">{{ generateCount }}</span>
+             </div>
+             <button @click="handleSaveGenerate" :disabled="savingGenerate" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-2xl shadow-lg shadow-purple-100 transition-all flex items-center">
+                {{ savingGenerate ? '提交中...' : '应用策略' }}
+             </button>
           </div>
         </div>
+      </section>
 
-      </div>
-      
-      <!-- Bottom Loading Indicator -->
-      <div v-if="isLoading" class="mt-8 flex justify-center">
-        <div class="inline-flex items-center px-4 py-2 rounded-full bg-white shadow-sm ring-1 ring-gray-900/5 text-sm text-gray-500">
-          <svg class="animate-spin h-4 w-4 mr-2 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          正在加载配置...
-        </div>
+      <!-- 底部门槛灯 -->
+      <div v-if="isLoading" class="fixed inset-0 bg-slate-900/10 backdrop-blur-[2px] z-40 flex items-center justify-center">
+         <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center gap-4 ring-1 ring-black/5 animate-scale-in">
+            <div class="relative w-16 h-16">
+               <div class="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+               <div class="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <p class="font-bold text-slate-800 text-lg">正在同步云端配置...</p>
+         </div>
       </div>
 
     </div>
@@ -464,18 +322,34 @@ const handleSaveGenerate = async () => {
 </template>
 
 <style scoped>
-.animate-slide-in {
-  animation: slideIn 0.3s ease-out;
+.input-premium {
+  @apply w-full h-14 bg-white border-2 border-slate-100 rounded-2xl text-slate-900 font-medium pr-4 
+         focus:border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-50 
+         transition-all duration-300 placeholder:text-slate-300;
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.input-select {
+  @apply w-full h-14 bg-slate-50 border-2 border-transparent rounded-2xl text-slate-900 font-bold px-4 
+         hover:bg-slate-100 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all cursor-pointer;
 }
+
+.btn-primary {
+  @apply bg-slate-900 hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded-2xl shadow-xl 
+         transition-all duration-300 flex items-center disabled:bg-slate-300;
+}
+
+.btn-primary-indigo {
+  @apply bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-10 rounded-[1.25rem] 
+         transition-all duration-300 flex items-center disabled:opacity-50;
+}
+
+.slide-enter-active, .slide-leave-active { transition: all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
+.slide-enter-from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+.slide-leave-to { opacity: 0; transform: translateX(20px); }
+
+.animate-fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.animate-scale-in { animation: scaleIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
+@keyframes scaleIn { from { scale: 0.8; opacity: 0; } to { scale: 1; opacity: 1; } }
 </style>

@@ -28,6 +28,7 @@ export interface MultiModalConfigResponse {
     video_analysis: LLMConfigItem
     provider_keys: ProviderApiKeys
     generate_count: number
+    default_task_type?: string
 }
 
 // === 保存请求类型 ===
@@ -82,4 +83,9 @@ export async function saveModelConfig(config: SaveModelConfigRequest): Promise<A
 // 保存生成设置（模块3）
 export async function saveGenerateConfig(config: SaveGenerateConfigRequest): Promise<ApiResponse<{ message: string }>> {
     return post<{ message: string }>('/settings/generate-config', config)
+}
+
+// 保存任务类型偏好
+export async function saveTaskType(taskType: string): Promise<ApiResponse<{ message: string }>> {
+    return post<{ message: string }>('/settings/task-type', { task_type: taskType })
 }

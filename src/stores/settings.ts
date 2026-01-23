@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getLLMConfig, saveApiConfig, saveModelConfig, saveGenerateConfig } from '../services/settings'
+import { getLLMConfig, saveApiConfig, saveModelConfig, saveGenerateConfig, saveTaskType } from '../services/settings'
 
 export type LLMProvider = 'openai' | 'deepseek' | 'anthropic' | 'moonshot' | 'qwen' | 'hunyuan' | 'doubao' | 'zhipu'
 
@@ -109,6 +109,12 @@ export const useSettingsStore = defineStore('settings', () => {
             baseUrl: response.data.video_analysis?.base_url || ''
           }
         }
+
+        // 加载默认选中的任务类型
+        if (response.data.default_task_type) {
+          activeTab.value = response.data.default_task_type as ConfigTab
+        }
+
         return true
       }
       return false
@@ -194,6 +200,27 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  // 保存任务类型（模块1后端同步）
+  async function saveTaskTypeAction(taskType?: string): Promise<{ success: boolean; message: string }> {
+    isSaving.value = true
+    try {
+      const typeToSave = taskType || activeTab.value
+      const response = await saveTaskType(typeToSave)
+      if (response.code === 0) {
+        if (taskType) {
+          activeTab.value = taskType as ConfigTab
+        }
+        return { success: true, message: '任务偏好保存成功' }
+      }
+      return { success: false, message: response.msg || '保存失败' }
+    } catch (error) {
+      console.error('保存失败:', error)
+      return { success: false, message: '网络错误' }
+    } finally {
+      isSaving.value = false
+    }
+  }
+
   return {
     multiModalConfig,
     providerKeys,
@@ -204,6 +231,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fetchConfig,
     saveApiConfigAction,
     saveModelConfigAction,
-    saveGenerateConfigAction
+    saveGenerateConfigAction,
+    saveTaskTypeAction
   }
 })
